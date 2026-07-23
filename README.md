@@ -1,0 +1,53 @@
+# sc-mcp
+
+A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
+**SafetyCulture API token** — no OAuth, no browser.
+
+It bridges your local MCP client (which speaks MCP over stdio) to the remote
+SafetyCulture MCP endpoint (`/agents/v1/mcp`, Streamable HTTP), attaching your
+API token as a bearer on every request. It's a transparent JSON-RPC relay — the
+client drives the protocol; this process just moves messages across.
+
+## Usage
+
+```bash
+SC_API_TOKEN=scapi_xxx npx sc-mcp
+```
+
+### Config (environment)
+
+| Var | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `SC_API_TOKEN` | yes | — | A SafetyCulture API token (e.g. `scapi_…`). |
+| `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Point at a non-prod env for testing, e.g. `https://api.slate.scinfradev.com`. |
+
+### In an MCP client (e.g. Claude Desktop)
+
+```json
+{
+  "mcpServers": {
+    "safetyculture": {
+      "command": "npx",
+      "args": ["-y", "sc-mcp"],
+      "env": { "SC_API_TOKEN": "scapi_xxx" }
+    }
+  }
+}
+```
+
+## Develop / run locally
+
+```bash
+npm install
+npm run build
+SC_API_TOKEN=scapi_xxx npm start
+```
+
+## How it works
+
+```
+MCP client  ──stdio (JSON-RPC)──▶  sc-mcp  ──HTTPS + Bearer token──▶  api.safetyculture.com/agents/v1/mcp
+            ◀──────────────────           ◀────────────────────────
+```
+
+Logs go to **stderr** (stdout is reserved for the MCP transport).
