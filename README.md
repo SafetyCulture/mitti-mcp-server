@@ -22,6 +22,14 @@ account can. Treat it like a password, and revoke it when no longer needed.
 | `SC_API_TOKEN` | yes | — | A SafetyCulture API token — see [Getting an API token](#getting-an-api-token). |
 | `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Point at a non-prod env for testing, e.g. `https://api.slate.scinfradev.com`. |
 
+
+### Claude
+
+You can run the following command to add the MCP server:
+```
+claude mcp add safetyculture --env SC_API_TOKEN=scapi_xxx -- npx -y git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git
+```
+
 ### In an MCP client (e.g. Claude Desktop)
 Add an entry to `claude_desktop_config.json` as shown in the following example:
 
