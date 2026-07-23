@@ -14,11 +14,20 @@ client drives the protocol; this process just moves messages across.
 SC_API_TOKEN=scapi_xxx npx sc-mcp
 ```
 
+### Getting an API token
+
+`SC_API_TOKEN` is a SafetyCulture API token generated from your user account.
+Follow the official guide to create one:
+**[Generate a SafetyCulture API token](https://help.safetyculture.com/000007)**.
+
+The token carries **your** permissions — the MCP client can do whatever your
+account can. Treat it like a password, and revoke it when no longer needed.
+
 ### Config (environment)
 
 | Var | Required | Default | Notes |
 | --- | --- | --- | --- |
-| `SC_API_TOKEN` | yes | — | A SafetyCulture API token (e.g. `scapi_…`). |
+| `SC_API_TOKEN` | yes | — | A SafetyCulture API token — see [Getting an API token](#getting-an-api-token). |
 | `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Point at a non-prod env for testing, e.g. `https://api.slate.scinfradev.com`. |
 
 ### In an MCP client (e.g. Claude Desktop)
