@@ -3,25 +3,7 @@
 A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
 **SafetyCulture API token** — no OAuth, no browser.
 
-It bridges your local MCP client (which speaks MCP over stdio) to the remote
-SafetyCulture MCP endpoint (`/agents/v1/mcp`, Streamable HTTP), attaching your
-API token as a bearer on every request. It's a transparent JSON-RPC relay — the
-client drives the protocol; this process just moves messages across.
-
 ## Usage
-
-Run straight from GitHub (no npm publish needed):
-
-```bash
-SC_API_TOKEN=scapi_xxx npx -y git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git
-```
-
-Once published to npm it simplifies to:
-
-```bash
-SC_API_TOKEN=scapi_xxx npx -y sc-mcp
-```
-
 ### Getting an API token
 
 `SC_API_TOKEN` is a SafetyCulture API token generated from your user account.
