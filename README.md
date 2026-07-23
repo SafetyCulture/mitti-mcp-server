@@ -10,8 +10,16 @@ client drives the protocol; this process just moves messages across.
 
 ## Usage
 
+Run straight from GitHub (no npm publish needed):
+
 ```bash
-SC_API_TOKEN=scapi_xxx npx sc-mcp
+SC_API_TOKEN=scapi_xxx npx -y git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git
+```
+
+Once published to npm it simplifies to:
+
+```bash
+SC_API_TOKEN=scapi_xxx npx -y sc-mcp
 ```
 
 ### Getting an API token
@@ -31,25 +39,18 @@ account can. Treat it like a password, and revoke it when no longer needed.
 | `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Point at a non-prod env for testing, e.g. `https://api.slate.scinfradev.com`. |
 
 ### In an MCP client (e.g. Claude Desktop)
+Add an entry to `claude_desktop_config.json` as shown in the following example:
 
 ```json
 {
   "mcpServers": {
     "safetyculture": {
       "command": "npx",
-      "args": ["-y", "sc-mcp"],
+      "args": ["-y", "git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git"],
       "env": { "SC_API_TOKEN": "scapi_xxx" }
     }
   }
 }
-```
-
-## Develop / run locally
-
-```bash
-npm install
-npm run build
-SC_API_TOKEN=scapi_xxx npm start
 ```
 
 ## How it works
