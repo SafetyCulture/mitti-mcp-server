@@ -10,6 +10,8 @@ A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
 Follow the official guide to create one:
 **[Generate a SafetyCulture API token](https://help.safetyculture.com/000007)**.
 
+Can be generated here: [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens)
+
 The token carries **your** permissions — the MCP client can do whatever your
 account can. Treat it like a password, and revoke it when no longer needed.
 
