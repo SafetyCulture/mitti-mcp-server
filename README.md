@@ -4,10 +4,7 @@ A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
 **SafetyCulture API token**.
 
 Only **read-only** tools are exposed, and only to a token that belongs to a
-person — **service-user tokens are rejected** at startup (custom `agent45`
-tokens still work). The seat type is read from the user's own record, never
-guessed, and cached against a hash of the token so repeat launches cost no API
-calls. See [`src/token-guard.ts`](src/token-guard.ts).
+person. Tokens belonging to service accounts are rejected.
 
 ## Usage
 ### Getting an API token
@@ -28,7 +25,7 @@ API if it leaks.
 | Var | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `SC_API_TOKEN` | yes | — | A SafetyCulture API token — see [Getting an API token](#getting-an-api-token). |
-| `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Point at a non-prod env for testing, e.g. `https://api.slate.scinfradev.com`. |
+| `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Only change this if you have been given an alternative endpoint. |
 
 
 ### Claude

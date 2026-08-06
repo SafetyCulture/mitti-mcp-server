@@ -4,25 +4,25 @@
   "description": "SafetyCulture MCP proxy — bridges a local stdio MCP client to the SafetyCulture MCP endpoint using an API token.",
   "type": "module",
   "bin": {
-    "sc-mcp": "dist/index.js"
+    "sc-mcp": "dist/sc-mcp.mjs"
   },
   "files": [
-    "dist"
+    "dist/sc-mcp.mjs"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/sc-mcp.mjs",
     "build": "tsc",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
-    "start": "node dist/index.js",
-    "prepare": "tsc"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.3"
+    "start": "node dist/sc-mcp.mjs",
+    "prepare": "npm run bundle"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.3",
     "@types/node": "^22.10.5",
+    "esbuild": "^0.24.2",
     "typescript": "5.9.3"
   }
 }

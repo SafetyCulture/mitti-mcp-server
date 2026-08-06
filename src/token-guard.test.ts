@@ -73,18 +73,21 @@ test('rejects a service user', async () => {
   await assert.rejects(() => assertNotServiceUser(BASE, tok()), /service user/);
 });
 
-test('lets a custom agent through despite the service-user seat', async () => {
+test('rejects a custom agent too — seat type alone decides, no carve-out', async () => {
   stubApi({ seatType: 'SUBSCRIPTION_SEAT_TYPE_SERVICE_USER', sessionClass: 'sc_agent45' });
-  assert.equal((await assertNotServiceUser(BASE, tok())).seatType, 'SUBSCRIPTION_SEAT_TYPE_SERVICE_USER');
+  await assert.rejects(() => assertNotServiceUser(BASE, tok()), /service user/);
 });
 
-test('does not exchange the token unless the seat says service user', async () => {
-  const paths = stubApi({ seatType: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM' });
-  await assertNotServiceUser(BASE, tok());
-  assert.equal(
-    paths.some((p) => p.endsWith('/auth/token')),
-    false,
-  );
+test('never exchanges the token — the seat lookup is the whole check', async () => {
+  for (const seat of ['SUBSCRIPTION_SEAT_TYPE_PREMIUM', 'SUBSCRIPTION_SEAT_TYPE_SERVICE_USER']) {
+    const paths = stubApi({ seatType: seat, sessionClass: 'sc_agent45' });
+    await assertNotServiceUser(BASE, tok()).catch(() => undefined);
+    assert.equal(
+      paths.some((p) => p.endsWith('/auth/token')),
+      false,
+      `${seat} should not trigger a token exchange`,
+    );
+  }
 });
 
 test('a second lookup for the same token makes no API calls', async () => {

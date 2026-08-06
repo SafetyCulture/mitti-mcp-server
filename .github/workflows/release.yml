@@ -1,0 +1,114 @@
+name: Release
+
+# Publishes a GitHub release carrying a prebuilt, dependency-free bundle, so
+# installing needs no toolchain and no `npm install` of transitive deps.
+#
+# Tag a commit to release it:
+#   npm version minor && git push --follow-tags
+#
+# Three assets are attached:
+#   sc-mcp-<version>.tgz  — npm-installable, version-pinned
+#   sc-mcp.tgz            — same tarball at a stable `latest/download` URL
+#   sc-mcp.mjs            — the raw bundle, runnable with `node sc-mcp.mjs`
+#
+# NOTE: while this repository is private/internal, release asset URLs need a
+# GitHub token, so `npx <url>` will not work for an unauthenticated user. Make
+# the repo public, or publish to npm, before pointing end users at these.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A tag that disagrees with package.json ships a package whose version
+      # doesn't match its release — catch it before anything is published.
+      - name: Check the tag matches package.json
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="v$(npm pkg get version | tr -d '"')"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $tag does not match package.json ($version)"
+            exit 1
+          fi
+
+      - name: Test
+        run: npm test
+
+      - name: Bundle
+        run: npm run bundle
+
+      # The bundle must run with no node_modules at all — that's the whole
+      # point of shipping it. Verify rather than assume: a bad token exits
+      # non-zero, so check for the message that proves it got that far.
+      - name: Verify the bundle is self-contained
+        run: |
+          mkdir -p "$RUNNER_TEMP/isolated"
+          cp dist/sc-mcp.mjs "$RUNNER_TEMP/isolated/"
+          cd "$RUNNER_TEMP/isolated"
+          output=$(SC_API_TOKEN=invalid-token node sc-mcp.mjs </dev/null 2>&1 || true)
+          echo "$output"
+          case "$output" in
+            *"Cannot find module"*|*"ERR_MODULE_NOT_FOUND"*)
+              echo "::error::bundle is not self-contained"; exit 1 ;;
+          esac
+          case "$output" in
+            sc-mcp:*) ;;
+            *) echo "::error::bundle did not start"; exit 1 ;;
+          esac
+
+      - name: Pack
+        run: |
+          tarball=$(npm pack --silent | tail -1)
+          echo "tarball=$tarball" >> "$GITHUB_ENV"
+          # An unversioned copy too, so `releases/latest/download/sc-mcp.tgz` is
+          # a stable URL that docs and configs never have to be updated for.
+          cp "$tarball" sc-mcp.tgz
+
+      # Confirm the packed tarball installs with no transitive dependencies.
+      - name: Verify the tarball installs clean
+        run: |
+          mkdir -p "$RUNNER_TEMP/installcheck"
+          cd "$RUNNER_TEMP/installcheck"
+          npm init -y >/dev/null
+          npm install --silent "$GITHUB_WORKSPACE/$tarball"
+          count=$(ls node_modules | grep -v '^\.' | wc -l | tr -d ' ')
+          echo "packages installed: $count"
+          if [ "$count" -ne 1 ]; then
+            echo "::error::expected only sc-mcp, got $count packages"
+            exit 1
+          fi
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag || github.ref_name }}" \
+            --title "${{ inputs.tag || github.ref_name }}" \
+            --generate-notes \
+            "$tarball" \
+            sc-mcp.tgz \
+            dist/sc-mcp.mjs

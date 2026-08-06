@@ -6,13 +6,16 @@
  * result across runs instead.
  *
  * The token is never stored: the key is its SHA-256, so the file is useless to
- * anyone who reads it. It's written 0600 regardless.
+ * anyone who reads it. It's also written 0600 — though note that only takes
+ * effect on POSIX. Windows ignores everything but the read-only bit, so there
+ * the file inherits the directory's ACL. That's why the key is a hash and not
+ * the token: the contents are safe to read either way.
  *
  * Entries expire so a seat change (or an account converted to a service user)
  * is picked up without needing the cache cleared by hand.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -21,17 +24,24 @@ const TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface SeatEntry {
   seatType: string;
-  /** Whether the token is a custom agent — only resolved for service users. */
-  isCustomAgent?: boolean;
   /** Epoch ms of the lookup. */
   checkedAt: number;
 }
 
 type CacheFile = Record<string, SeatEntry>;
 
+/**
+ * Where the cache lives, per platform convention:
+ *   Windows  %LOCALAPPDATA%            (falls back to ~/.cache if unset)
+ *   macOS /  $XDG_CACHE_HOME or ~/.cache
+ *   Linux
+ *
+ * `SC_MCP_CACHE_DIR` overrides all of it.
+ */
 function cachePath(): string {
   const base =
     process.env.SC_MCP_CACHE_DIR ??
+    (process.platform === 'win32' ? process.env.LOCALAPPDATA : undefined) ??
     process.env.XDG_CACHE_HOME ??
     join(homedir(), '.cache');
   return join(base, 'sc-mcp', 'seats.json');
@@ -82,8 +92,20 @@ export function setCachedSeat(
       }
     }
 
+    // Write-then-rename, so a concurrent launch or a kill mid-write can't leave
+    // a truncated file behind. rename is atomic on POSIX, and on Windows it
+    // replaces the destination rather than failing. Writing the mode on the temp
+    // file also means each write lands 0600 — passing `mode` to an existing file
+    // would be ignored.
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify(cache), { mode: 0o600 });
+    const temp = `${path}.${process.pid}.tmp`;
+    try {
+      writeFileSync(temp, JSON.stringify(cache), { mode: 0o600 });
+      renameSync(temp, path);
+    } catch (error) {
+      rmSync(temp, { force: true });
+      throw error;
+    }
   } catch {
     // Non-fatal by design: a read-only or full disk shouldn't stop the proxy.
   }
