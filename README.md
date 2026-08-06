@@ -3,7 +3,11 @@
 A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
 **SafetyCulture API token**.
 
-Only **read-only** tools are exposed.
+Only **read-only** tools are exposed, and only to a token that belongs to a
+person — **service-user tokens are rejected** at startup (custom `agent45`
+tokens still work). The seat type is read from the user's own record, never
+guessed, and cached against a hash of the token so repeat launches cost no API
+calls. See [`src/token-guard.ts`](src/token-guard.ts).
 
 ## Usage
 ### Getting an API token

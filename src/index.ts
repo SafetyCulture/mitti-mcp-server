@@ -35,6 +35,7 @@ import type {
   RequestId,
 } from '@modelcontextprotocol/sdk/types.js';
 import { classifyTool } from './read-only.js';
+import { assertNotServiceUser } from './token-guard.js';
 
 const token = process.env.SC_API_TOKEN;
 const baseUrl = process.env.SC_API_URL ?? 'https://api.safetyculture.com';
@@ -167,6 +168,14 @@ remote.onerror = (error) => log(`remote error: ${error.message}`);
 
 process.on('SIGINT', () => void shutdown(0));
 process.on('SIGTERM', () => void shutdown(0));
+
+// Reject service-user tokens before opening the relay — see token-guard.ts.
+try {
+  const { seatType, cached } = await assertNotServiceUser(baseUrl, token);
+  log(`token seat type: ${seatType}${cached ? ' (cached)' : ''}`);
+} catch (error: unknown) {
+  fatal(`refusing to start — ${error instanceof Error ? error.message : String(error)}`);
+}
 
 try {
   await remote.start();
