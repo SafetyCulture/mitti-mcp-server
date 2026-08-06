@@ -27,7 +27,7 @@ import {
   ErrorCode,
   isJSONRPCErrorResponse,
   isJSONRPCRequest,
-  isJSONRPCResponse,
+  isJSONRPCResultResponse,
 } from '@modelcontextprotocol/sdk/types.js';
 import type {
   JSONRPCMessage,
@@ -150,7 +150,7 @@ local.onmessage = (message: JSONRPCMessage) => {
 };
 
 remote.onmessage = (message: JSONRPCMessage) => {
-  if (isJSONRPCResponse(message) && pendingToolsList.delete(idKey(message.id))) {
+  if (isJSONRPCResultResponse(message) && pendingToolsList.delete(idKey(message.id))) {
     toLocal(filterToolsList(message));
     return;
   }
@@ -171,8 +171,8 @@ process.on('SIGTERM', () => void shutdown(0));
 
 // Reject service-user tokens before opening the relay — see token-guard.ts.
 try {
-  const { seatType, cached } = await assertNotServiceUser(baseUrl, token);
-  log(`token seat type: ${seatType}${cached ? ' (cached)' : ''}`);
+  const seatType = await assertNotServiceUser(baseUrl, token);
+  log(`token seat type: ${seatType}`);
 } catch (error: unknown) {
   fatal(`refusing to start — ${error instanceof Error ? error.message : String(error)}`);
 }

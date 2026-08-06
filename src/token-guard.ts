@@ -18,10 +18,9 @@
  * needing `write:users`, unlike `POST /users/v1/users/list`, which 403s for an
  * ordinary user and so can't tell "not permitted" apart from "service user".
  *
- * The result is cached against a hash of the token (seat-cache.ts) so this
- * costs no API calls on a repeat launch.
+ * This runs once per process, at startup. Two requests per session is cheap
+ * enough that caching the answer isn't worth the machinery.
  */
-import { getCachedSeat, setCachedSeat } from './seat-cache.js';
 
 /** Seat type that marks a service account rather than a person. */
 const SERVICE_USER_SEAT = 'SUBSCRIPTION_SEAT_TYPE_SERVICE_USER';
@@ -49,8 +48,14 @@ async function getJson(url: URL, token: string): Promise<Record<string, unknown>
   return (await response.json()) as Record<string, unknown>;
 }
 
-/** Look the seat up over the network. Only called on a cache miss. */
-async function fetchSeatType(baseUrl: string, token: string): Promise<string> {
+/**
+ * Resolve the token's seat type and reject service users.
+ *
+ * Throws if the token belongs to a service user, and also if the seat type
+ * can't be established — an unverified token doesn't get the benefit of the
+ * doubt.
+ */
+export async function assertNotServiceUser(baseUrl: string, token: string): Promise<string> {
   const whoAmI = await getJson(new URL('/accounts/user/v1/user:WhoAmI', baseUrl), token);
   const userId = whoAmI.user_id;
   if (typeof userId !== 'string' || userId === '') {
@@ -70,27 +75,6 @@ async function fetchSeatType(baseUrl: string, token: string): Promise<string> {
   if (typeof seatType !== 'string' || seatType === '') {
     throw new Error('GetUser returned no seat_type');
   }
-  return seatType;
-}
-
-/**
- * Resolve the token's seat type and reject service users.
- *
- * Throws if the token belongs to a service user, and also if the seat type
- * can't be established — an unverified token doesn't get the benefit of the
- * doubt. Only successes are cached; a failed lookup is retried next run.
- */
-export async function assertNotServiceUser(
-  baseUrl: string,
-  token: string
-): Promise<{ seatType: string; cached: boolean }> {
-  const cached = getCachedSeat(token);
-  const seatType = cached?.seatType ?? (await fetchSeatType(baseUrl, token));
-
-  // Record before deciding, so a rejected token doesn't re-resolve every launch.
-  if (!cached) {
-    setCachedSeat(token, { seatType });
-  }
 
   if (seatType === SERVICE_USER_SEAT) {
     throw new Error(
@@ -99,5 +83,5 @@ export async function assertNotServiceUser(
     );
   }
 
-  return { seatType, cached: Boolean(cached) };
+  return seatType;
 }

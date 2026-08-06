@@ -20,9 +20,9 @@
     "prepare": "npm run bundle"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.3",
-    "@types/node": "^22.10.5",
-    "esbuild": "^0.24.2",
-    "typescript": "5.9.3"
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@types/node": "24.13.3",
+    "esbuild": "0.28.1",
+    "typescript": "7.0.2"
   }
 }
