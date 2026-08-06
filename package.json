@@ -1,6 +1,6 @@
 {
   "name": "sc-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SafetyCulture MCP proxy — bridges a local stdio MCP client to the SafetyCulture MCP endpoint using an API token.",
   "type": "module",
   "bin": {
