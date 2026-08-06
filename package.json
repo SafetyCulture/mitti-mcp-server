@@ -13,7 +13,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/sc-mcp.mjs",
+    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/sc-mcp.mjs",
     "build": "tsc",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
     "start": "node dist/sc-mcp.mjs",
