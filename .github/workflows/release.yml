@@ -31,6 +31,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # GitHub's default is 360 minutes, so a hung step burns six hours of runner
+    # time before anything notices. A clean run takes under two minutes.
+    timeout-minutes: 20
     steps:
       # A dispatch naming a tag that doesn't exist otherwise fails deep inside
       # actions/checkout as an opaque `git fetch` exit 1. Say so plainly instead.
@@ -78,7 +81,11 @@ jobs:
             exit 1
           fi
 
+      # Tighter than the job cap: a hanging test is the failure mode we've
+      # actually hit, and `node --test` will sit there indefinitely rather than
+      # fail. The suite runs in well under a second.
       - name: Test
+        timeout-minutes: 5
         run: npm test
 
       - name: Bundle
