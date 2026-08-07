@@ -1,7 +1,7 @@
-# sc-mcp
+# mitti-mcp-server
 
 A tiny proxy that lets any MCP client talk to the **SafetyCulture MCP** using a
-**SafetyCulture API token**.
+**SafetyCulture User API token**.
 
 Only **read-only** tools are exposed, and only to a token that belongs to a
 person. Tokens belonging to service accounts are rejected.
