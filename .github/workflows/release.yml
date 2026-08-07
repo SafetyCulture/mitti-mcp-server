@@ -41,9 +41,10 @@ jobs:
         if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
         run: |
-          if ! gh api "repos/${{ github.repository }}/git/ref/tags/${{ inputs.tag }}" >/dev/null 2>&1; then
-            echo "::error::tag ${{ inputs.tag }} does not exist. Create it first, e.g. 'npm version minor && git push --follow-tags'."
+          if ! gh api "repos/${{ github.repository }}/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::tag $TAG does not exist. Create it first, e.g. 'npm version minor && git push --follow-tags'."
             exit 1
           fi
 
@@ -73,11 +74,12 @@ jobs:
       # A tag that disagrees with package.json ships a package whose version
       # doesn't match its release — catch it before anything is published.
       - name: Check the tag matches package.json
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
           version="v$(npm pkg get version | tr -d '"')"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::tag $tag does not match package.json ($version)"
+          if [ "$TAG" != "$version" ]; then
+            echo "::error::tag $TAG does not match package.json ($version)"
             exit 1
           fi
 
@@ -135,9 +137,10 @@ jobs:
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          gh release create "${{ inputs.tag || github.ref_name }}" \
-            --title "${{ inputs.tag || github.ref_name }}" \
+          gh release create "$TAG" \
+            --title "$TAG" \
             --generate-notes \
             "$tarball" \
             sc-mcp.tgz \
