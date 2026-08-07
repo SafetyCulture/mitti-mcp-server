@@ -38,10 +38,22 @@ function toUuid(userId: string): string | undefined {
   ].join('-');
 }
 
+/** A stalled connection here must not hang startup forever. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function getJson(url: URL, token: string): Promise<Record<string, unknown>> {
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new Error(`${url.pathname} timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  }
   if (!response.ok) {
     throw new Error(`${url.pathname} returned ${response.status}`);
   }
