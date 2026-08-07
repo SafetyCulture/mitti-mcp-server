@@ -13,8 +13,10 @@
  *
  * `tools/list` responses are filtered down to tools that declare
  * `readOnlyHint: true`, and `tools/call` requests for anything else are rejected
- * here without reaching SafetyCulture. See read-only.ts for the policy. Every
- * other message passes through untouched.
+ * here without reaching SafetyCulture. See read-only.ts for the policy, and
+ * bridge.ts for how the relay enforces it on every message that crosses it —
+ * only recognised methods and well-formed requests get through; the rest is
+ * refused, not passed through by default.
  *
  * Config (env):
  *   SC_API_TOKEN  (required)  SafetyCulture API token (e.g. "scapi_…").
@@ -23,18 +25,7 @@
 /// <reference types="node" />
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {
-  ErrorCode,
-  isJSONRPCErrorResponse,
-  isJSONRPCRequest,
-  isJSONRPCResultResponse,
-} from '@modelcontextprotocol/sdk/types.js';
-import type {
-  JSONRPCMessage,
-  JSONRPCResultResponse,
-  RequestId,
-} from '@modelcontextprotocol/sdk/types.js';
-import { classifyTool } from './read-only.js';
+import { createBridge } from './bridge.js';
 import { assertNotServiceUser } from './token-guard.js';
 
 const token = process.env.SC_API_TOKEN;
@@ -71,95 +62,7 @@ async function shutdown(code = 0): Promise<void> {
   process.exit(code);
 }
 
-function toRemote(message: JSONRPCMessage): void {
-  remote.send(message).catch((error: unknown) => {
-    log(`error forwarding to SafetyCulture: ${error instanceof Error ? error.message : String(error)}`);
-  });
-}
-
-function toLocal(message: JSONRPCMessage): void {
-  local.send(message).catch((error: unknown) => {
-    log(`error forwarding to client: ${error instanceof Error ? error.message : String(error)}`);
-  });
-}
-
-/** Ids of in-flight `tools/list` requests, so their responses can be filtered. */
-const pendingToolsList = new Set<string>();
-/** Read-only verdicts learned from `tools/list`, keyed by tool name. */
-const verdicts = new Map<string, boolean>();
-
-// Request ids may be strings or numbers; keep the two apart.
-const idKey = (id: RequestId): string => `${typeof id}:${id}`;
-
-/** Drop every non-read-only tool from a `tools/list` result, remembering each verdict. */
-function filterToolsList(response: JSONRPCResultResponse): JSONRPCMessage {
-  const tools = response.result.tools;
-  if (!Array.isArray(tools)) return response;
-
-  const allowed: unknown[] = [];
-  const blocked: string[] = [];
-  for (const tool of tools) {
-    const verdict = classifyTool(tool);
-    const name = (tool as { name?: unknown })?.name;
-    if (typeof name === 'string') verdicts.set(name, verdict.readOnly);
-    if (verdict.readOnly) allowed.push(tool);
-    else blocked.push(`${String(name)} (${verdict.reason})`);
-  }
-
-  if (blocked.length > 0) {
-    log(`tools/list: exposing ${allowed.length} read-only tool(s), hiding ${blocked.length}: ${blocked.join(', ')}`);
-  } else {
-    log(`tools/list: exposing ${allowed.length} read-only tool(s)`);
-  }
-  return { ...response, result: { ...response.result, tools: allowed } };
-}
-
-// Bridge: relay JSON-RPC in both directions, enforcing the read-only policy on tools.
-local.onmessage = (message: JSONRPCMessage) => {
-  if (isJSONRPCRequest(message)) {
-    if (message.method === 'tools/list') {
-      pendingToolsList.add(idKey(message.id));
-    } else if (message.method === 'tools/call') {
-      const name = (message.params as { name?: unknown } | undefined)?.name;
-      if (typeof name !== 'string') {
-        // Malformed — let SafetyCulture produce the protocol error.
-        toRemote(message);
-        return;
-      }
-      // Only tools seen in a tools/list and proven read-only there may be
-      // called. A name we've never judged tells us nothing, so it's blocked.
-      const verdict = verdicts.get(name);
-      if (verdict !== true) {
-        const why = verdict === false ? 'not a read-only tool' : 'not a known read-only tool';
-        log(`blocked tools/call "${name}": ${why}`);
-        toLocal({
-          jsonrpc: '2.0',
-          id: message.id,
-          error: {
-            code: ErrorCode.InvalidParams,
-            message:
-              `Tool "${name}" is not available: this proxy exposes only SafetyCulture tools ` +
-              `that declare readOnlyHint. Call tools/list for the tools you can use.`,
-          },
-        });
-        return;
-      }
-    }
-  }
-  toRemote(message);
-};
-
-remote.onmessage = (message: JSONRPCMessage) => {
-  if (isJSONRPCResultResponse(message) && pendingToolsList.delete(idKey(message.id))) {
-    toLocal(filterToolsList(message));
-    return;
-  }
-  // A failed tools/list has nothing to filter — just stop tracking it.
-  if (isJSONRPCErrorResponse(message) && message.id != null) {
-    pendingToolsList.delete(idKey(message.id));
-  }
-  toLocal(message);
-};
+createBridge(local, remote, log);
 
 local.onclose = () => void shutdown(0);
 remote.onclose = () => void shutdown(0);
