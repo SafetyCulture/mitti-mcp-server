@@ -28,11 +28,24 @@ API if it leaks.
 | `SC_API_URL` | no | `https://api.safetyculture.com` | API base URL. Only change this if you have been given an alternative endpoint. |
 
 
+### Prerequisites
+
+Both setups below use `npx`, which ships with **Node.js** — you need **Node 20
+or newer** installed. Check what you have with:
+
+```
+node --version
+```
+
+If that errors, or reports below v20, install it from
+**[nodejs.org/en/download](https://nodejs.org/en/download)** (the LTS build is
+the safe default). macOS users with Homebrew can instead run `brew install node`.
+
 ### Claude
 
 You can run the following command to add the MCP server:
 ```
-claude mcp add safetyculture --env SC_API_TOKEN=scapi_xxx -- npx -y git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git
+claude mcp add safetyculture --env SC_API_TOKEN=scapi_xxx -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/sc-mcp.tgz
 ```
 
 ### In an MCP client (e.g. Claude Desktop)
@@ -43,11 +56,21 @@ Add an entry to `claude_desktop_config.json` as shown in the following example:
   "mcpServers": {
     "safetyculture": {
       "command": "npx",
-      "args": ["-y", "git+ssh://git@github.com/SafetyCulture/mitti-mcp-server.git"],
+      "args": [
+        "-y",
+        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/sc-mcp.tgz"
+      ],
       "env": { "SC_API_TOKEN": "scapi_xxx" }
     }
   }
 }
 ```
+
+`latest/download` always resolves to the newest release. To pin a version, swap
+it for a tag — for example
+`.../releases/download/v0.1.2/sc-mcp-0.1.2.tgz`.
+
+The release tarball is a prebuilt, dependency-free bundle: installing it pulls
+in no transitive packages and needs no build toolchain.
 
 Logs go to **stderr** (stdout is reserved for the MCP transport).

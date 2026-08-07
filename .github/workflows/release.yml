@@ -11,9 +11,9 @@ name: Release
 #   sc-mcp.tgz            — same tarball at a stable `latest/download` URL
 #   sc-mcp.mjs            — the raw bundle, runnable with `node sc-mcp.mjs`
 #
-# NOTE: while this repository is private/internal, release asset URLs need a
-# GitHub token, so `npx <url>` will not work for an unauthenticated user. Make
-# the repo public, or publish to npm, before pointing end users at these.
+# The repository is public, so these asset URLs resolve without a GitHub token
+# and are what the README points end users at — `npx <url>` works unauthenticated.
+# Making the repo private again would break that install path.
 
 on:
   push:
