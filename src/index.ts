@@ -26,10 +26,8 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createBridge } from './bridge.js';
+import { resolveConfig } from './config.js';
 import { assertNotServiceUser } from './token-guard.js';
-
-const token = process.env.SC_API_TOKEN;
-const baseUrl = process.env.SC_API_URL ?? 'https://api.safetyculture.com';
 
 function log(message: string): void {
   // Logs MUST go to stderr — stdout is the MCP transport channel.
@@ -41,11 +39,13 @@ function fatal(message: string): never {
   process.exit(1);
 }
 
-if (!token) {
-  fatal('SC_API_TOKEN is required (a SafetyCulture API token, e.g. "scapi_…").');
+let config;
+try {
+  config = resolveConfig(process.env);
+} catch (error: unknown) {
+  fatal(error instanceof Error ? error.message : String(error));
 }
-
-const endpoint = new URL('/agents/v1/mcp', baseUrl);
+const { token, baseUrl, endpoint } = config;
 
 const remote = new StreamableHTTPClientTransport(endpoint, {
   requestInit: {
