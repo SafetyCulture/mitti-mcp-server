@@ -107,3 +107,26 @@ test('rejects a malformed user id rather than guessing', async () => {
     new Response(JSON.stringify({ user_id: 'not-an-s12-id' }), { status: 200 })) as typeof fetch;
   await assert.rejects(() => assertNotServiceUser(BASE, 't'), /unexpected user id format/);
 });
+
+test('turns a stalled connection into a clear error instead of hanging', async () => {
+  globalThis.fetch = (async () => {
+    throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+  }) as typeof fetch;
+  await assert.rejects(() => assertNotServiceUser(BASE, 't'), /timed out/);
+});
+
+test('passes an abort signal on every request, so a stall cannot hang forever', async () => {
+  const signals: (AbortSignal | undefined)[] = [];
+  globalThis.fetch = (async (_input, init?: RequestInit) => {
+    signals.push(init?.signal ?? undefined);
+    return new Response(JSON.stringify({ user_id: USER_ID, user_document: { seat_type: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM' } }), {
+      status: 200,
+    });
+  }) as typeof fetch;
+  await assertNotServiceUser(BASE, 't');
+  assert.equal(signals.length, 2, 'WhoAmI + GetUser');
+  assert.ok(
+    signals.every((s) => s instanceof AbortSignal),
+    'every request should carry a timeout signal'
+  );
+});

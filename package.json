@@ -15,6 +15,7 @@
   "scripts": {
     "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/sc-mcp.mjs",
     "build": "tsc",
+    "lint": "oxlint .",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
     "start": "node dist/sc-mcp.mjs",
     "prepare": "npm run bundle"
@@ -23,6 +24,7 @@
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "24.13.3",
     "esbuild": "0.28.1",
+    "oxlint": "1.77.0",
     "typescript": "7.0.2"
   }
 }
