@@ -1,6 +1,6 @@
 /**
  * The relay: pipes JSON-RPC between the local stdio client and the remote
- * SafetyCulture transport, enforcing the read-only policy.
+ * Mitti transport, enforcing the read-only policy.
  *
  * The policy only means anything if the relay itself fails closed. Two rules
  * follow from that:
@@ -9,7 +9,7 @@
  *      JSON-RPC *request* (has an `id`) — only then can `isJSONRPCRequest`
  *      even run, and only requests get policy-checked below. A same-shaped
  *      *notification* (no `id`) parses fine per the MCP schema but must
- *      never reach SafetyCulture: nothing consults `verdicts` for it.
+ *      never reach Mitti: nothing consults `verdicts` for it.
  *   2. Every other method is relayed only if it's on an explicit allowlist.
  *      New MCP surface (upstream additions, protocol revisions) fails closed
  *      by default instead of silently inheriting a free pass.
@@ -35,7 +35,7 @@ export interface BridgeTransport {
 }
 
 /**
- * Request methods relayed to SafetyCulture without further inspection —
+ * Request methods relayed to Mitti without further inspection —
  * reads, plus `tools/call`, which gets its own policy check below. Notably
  * absent: `completion/complete` and the `tasks/*` family, neither of which
  * is obviously bounded to reads.
@@ -72,7 +72,7 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
 
   function toRemote(message: JSONRPCMessage): void {
     remote.send(message).catch((error: unknown) => {
-      log(`error forwarding to SafetyCulture: ${error instanceof Error ? error.message : String(error)}`);
+      log(`error forwarding to Mitti: ${error instanceof Error ? error.message : String(error)}`);
     });
   }
 
@@ -114,7 +114,7 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
 
     if (method === 'tools/call') {
       // A tools/call that isn't a well-formed request can't be policy-checked
-      // below, so it never reaches SafetyCulture. This also catches the
+      // below, so it never reaches Mitti. This also catches the
       // notification-shaped variant (same method, no id) that would
       // otherwise fall through every check here.
       if (!isJSONRPCRequest(message)) {
@@ -138,7 +138,7 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
         rejectLocally(
           message.id,
           ErrorCode.InvalidParams,
-          `Tool "${name}" is not available: this proxy exposes only SafetyCulture tools ` +
+          `Tool "${name}" is not available: this proxy exposes only Mitti tools ` +
             `that declare readOnlyHint. Call tools/list for the tools you can use.`
         );
         return;

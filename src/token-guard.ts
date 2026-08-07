@@ -1,7 +1,7 @@
 /**
  * Startup guard: this proxy is for people, not service accounts.
  *
- * A SafetyCulture API token can belong to a real person or to a service user.
+ * A Mitti API token can belong to a real person or to a service user.
  * Service-user tokens are typically far more privileged than any individual —
  * the one this was tested against carried 32 admin/write permissions — and
  * belong in server-to-server integrations, not behind a desktop MCP client.
@@ -90,7 +90,7 @@ export async function assertNotServiceUser(baseUrl: string, token: string): Prom
 
   if (seatType === SERVICE_USER_SEAT) {
     throw new Error(
-      'this token belongs to a service user. sc-mcp is for tokens that belong to a ' +
+      'this token belongs to a service user. mitti-mcp is for tokens that belong to a ' +
         'person — use your own API token from app.safetyculture.com/account/api-tokens.'
     );
   }

@@ -1,24 +1,24 @@
 {
-  "name": "sc-mcp",
-  "version": "0.1.2",
-  "description": "SafetyCulture MCP proxy — bridges a local stdio MCP client to the SafetyCulture MCP endpoint using an API token.",
+  "name": "mitti-mcp",
+  "version": "0.2.0",
+  "description": "Mitti MCP proxy — bridges a local stdio MCP client to the Mitti MCP endpoint using an API token.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "sc-mcp": "dist/sc-mcp.mjs"
+    "mitti-mcp": "dist/mitti-mcp.mjs"
   },
   "files": [
-    "dist/sc-mcp.mjs"
+    "dist/mitti-mcp.mjs"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/sc-mcp.mjs",
+    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs",
     "build": "tsc",
     "lint": "oxlint .",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
-    "start": "node dist/sc-mcp.mjs",
+    "start": "node dist/mitti-mcp.mjs",
     "prepare": "npm run bundle"
   },
   "devDependencies": {

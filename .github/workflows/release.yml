@@ -7,9 +7,11 @@ name: Release
 #   npm version minor && git push --follow-tags
 #
 # Three assets are attached:
-#   sc-mcp-<version>.tgz  — npm-installable, version-pinned
-#   sc-mcp.tgz            — same tarball at a stable `latest/download` URL
-#   sc-mcp.mjs            — the raw bundle, runnable with `node sc-mcp.mjs`
+#   mitti-mcp-<version>.tgz  — npm-installable, version-pinned
+#   mitti-mcp.tgz            — same tarball at a stable `latest/download` URL
+#   sc-mcp.tgz               — pre-rebrand alias of the same tarball, so older
+#                              configs keep resolving; remove once unused
+#   mitti-mcp.mjs            — the raw bundle, runnable with `node mitti-mcp.mjs`
 #
 # The repository is public, so these asset URLs resolve without a GitHub token
 # and are what the README points end users at — `npx <url>` works unauthenticated.
@@ -97,16 +99,17 @@ jobs:
       - name: Verify the bundle is self-contained
         run: |
           mkdir -p "$RUNNER_TEMP/isolated"
-          cp dist/sc-mcp.mjs "$RUNNER_TEMP/isolated/"
+          cp dist/mitti-mcp.mjs "$RUNNER_TEMP/isolated/"
           cd "$RUNNER_TEMP/isolated"
-          output=$(SC_API_TOKEN=invalid-token node sc-mcp.mjs </dev/null 2>&1 || true)
+          output=$(MITTI_API_TOKEN=invalid-token node mitti-mcp.mjs </dev/null 2>&1 || true)
           echo "$output"
           case "$output" in
             *"Cannot find module"*|*"ERR_MODULE_NOT_FOUND"*)
               echo "::error::bundle is not self-contained"; exit 1 ;;
           esac
+          # Must match the stderr prefix in src/index.ts.
           case "$output" in
-            sc-mcp:*) ;;
+            mitti-mcp:*) ;;
             *) echo "::error::bundle did not start"; exit 1 ;;
           esac
 
@@ -114,8 +117,12 @@ jobs:
         run: |
           tarball=$(npm pack --silent | tail -1)
           echo "tarball=$tarball" >> "$GITHUB_ENV"
-          # An unversioned copy too, so `releases/latest/download/sc-mcp.tgz` is
-          # a stable URL that docs and configs never have to be updated for.
+          # An unversioned copy too, so `releases/latest/download/mitti-mcp.tgz`
+          # is a stable URL that docs and configs never have to be updated for.
+          cp "$tarball" mitti-mcp.tgz
+          # The pre-rebrand name, published alongside it so any config still
+          # pointing at `latest/download/sc-mcp.tgz` keeps resolving. Drop this
+          # once early-access users have moved to the Mitti URL.
           cp "$tarball" sc-mcp.tgz
 
       # Confirm the packed tarball installs with no transitive dependencies.
@@ -128,7 +135,7 @@ jobs:
           count=$(ls node_modules | grep -v '^\.' | wc -l | tr -d ' ')
           echo "packages installed: $count"
           if [ "$count" -ne 1 ]; then
-            echo "::error::expected only sc-mcp, got $count packages"
+            echo "::error::expected only mitti-mcp, got $count packages"
             exit 1
           fi
 
@@ -140,5 +147,6 @@ jobs:
             --title "${{ inputs.tag || github.ref_name }}" \
             --generate-notes \
             "$tarball" \
+            mitti-mcp.tgz \
             sc-mcp.tgz \
-            dist/sc-mcp.mjs
+            dist/mitti-mcp.mjs
