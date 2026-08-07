@@ -18,6 +18,11 @@
  * its annotations. This module applies that same "recognise and permit;
  * otherwise refuse" rule to the message surface itself.
  */
+// The pinned SDK version matters here, not just for the API it exposes: JSON-RPC
+// batching was removed in MCP protocol revision 2025-06-18, so `JSONRPCMessageSchema`
+// has no array member and a batched `[{...}, {...}]` payload fails to parse rather
+// than being relayed wholesale, unexamined. Downgrading below that revision would
+// silently reopen a batch-array bypass of every check in this file.
 import {
   ErrorCode,
   isJSONRPCNotification,
