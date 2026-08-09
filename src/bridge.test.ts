@@ -141,6 +141,6 @@ test('a recognised notification is forwarded', () => {
 
 test('a recognised read method is forwarded', () => {
   const { local, remote } = setup();
-  receive(local, { jsonrpc: '2.0', id: 20, method: 'resources/read', params: { uri: 'sc://x' } });
+  receive(local, { jsonrpc: '2.0', id: 20, method: 'resources/read', params: { uri: 'mitti://x' } });
   assert.ok(remote.sent.some((m) => (m as { id?: unknown }).id === 20));
 });
