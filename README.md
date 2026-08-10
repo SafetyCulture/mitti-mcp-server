@@ -40,7 +40,7 @@ It must be an API token for your user account, not a service account token.
 
 The connector runs locally on your machine, and Node.js is what runs it.
 
-1. Open the terminal on your computer
+1. Open a terminal — Terminal on a Mac, Command Prompt or PowerShell on Windows
 2. Type `node --version` and hit enter
 
 If it says `v20` or higher, proceed to step 3.
