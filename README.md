@@ -1,8 +1,8 @@
 # Mitti MCP
 
 Connect your Mitti data to the AI tools you already use. Ask questions in plain
-language and get answers from your own inspections, actions, issues, assets, and
-training records.
+language and get answers from your Mitti account — limited to the data you can
+already access in the platform.
 
 ---
 
@@ -12,16 +12,20 @@ training records.
 group of customers before we build the full version. If you found this repo on
 your own, it isn't available yet — talk to your Mitti account contact.
 
-Four things to know before you set it up:
+Five things to know before you set it up:
 
-1. **It's temporary.** This version uses a long-lived API token. The real version
+1. **It respects your permissions.** It can only reach what you can already reach
+   in Mitti — the same sites, templates, and records you'd see if you logged in
+   yourself. It can't widen your access, and it can't see anything on behalf of
+   anyone else.
+2. **It only reads.** Your AI tool can't create, edit, or delete anything in your
+   account.
+3. **It's temporary.** This version uses a long-lived API token. The real version
    will use OAuth, so you can grant an AI tool consent for specific things
    instead of handing over a token. When that arrives, this one is switched off.
-2. **It might break.** It hasn't had the hardening a released product gets.
-3. **It isn't covered by standard support.** Don't raise a support ticket — come
+4. **It might break.** It hasn't had the hardening a released product gets.
+5. **It isn't covered by standard support.** Don't raise a support ticket — come
    straight to us by replying to the email that brought you here.
-4. **It only reads.** Your AI tool can't create, edit, or delete anything in your
-   account, and it only sees what your own login can already see.
 
 You're getting it early because your feedback decides what we build next.
 
@@ -38,10 +42,15 @@ Go to
 and generate a token from your own account. The
 [help article](https://help.safetyculture.com/000007) walks through it.
 
+The token is what carries your permissions across to your AI tool — it inherits
+your access, and nothing beyond it.
+
 > **It has to be your own token, not a service account token.** Service account
-> tokens carry far more access than any one person, and this trial refuses them.
-> For the same reason, don't ask an admin to make a token and pass it around. If
-> you can't create your own, wait for the OAuth version.
+> tokens carry far more access than any one person, so a trial run on one would
+> no longer be bounded by your permissions. This trial refuses them. For the same
+> reason, don't ask an admin to make a token and pass it around — whoever uses it
+> would be acting with the token owner's access, not their own. If you can't
+> create your own, wait for the OAuth version.
 
 Copy the token somewhere safe for the next step. Treat it like a password.
 
@@ -225,15 +234,21 @@ There are over 150 read-only tools, covering inspections, actions, issues, asset
 and maintenance, templates, schedules, training, documents, analytics, sites and
 org structure, users and permissions, contractors, and credentials.
 
+Answers are drawn only from the data your own account can access, so two people
+in the same organisation may get different results from the same question.
+
 It can't build or edit templates, and it can't change anything in your account.
 
 ## What it can and can't do
 
+**It respects your permissions.** Every request runs as you. Your AI tool reaches
+exactly the sites, templates, inspections, and records you'd reach by logging in
+yourself — no more. If a site is outside your access in Mitti, it's outside your
+AI tool's access too, and it stays that way whatever you ask. Nothing here grants
+new access or lets you see another person's view of the platform.
+
 **It only reads.** Your AI tool is offered read-only tools and nothing else, so it
 can't create, edit, or delete anything.
-
-**It sees exactly what you see.** The token carries your own permissions. If you
-can't view something in Mitti, neither can your AI tool.
 
 **Your token is still a password.** The read-only limit applies to what your AI
 tool can do through this connector. The token itself remains fully privileged
