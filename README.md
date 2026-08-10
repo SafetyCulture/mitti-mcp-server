@@ -1,31 +1,20 @@
 # Mitti MCP
 
-Connect your Mitti data to the AI tools you already use. Ask questions in plain
-language and get answers from your Mitti account — limited to the data you can
-already access in the platform.
+Connect your Mitti data to the AI tools you already use. Ask questions in plain language and get answers from your Mitti account — limited to the data you can already access in the platform.
 
 ---
 
 ## Read this first
 
-**This is a pre early access trial, by invitation.** We're testing with a small
-group of customers before we build the full version. If you found this repo on
-your own, it isn't available yet — talk to your Mitti account contact.
+**This is a pre early access trial, by invitation.** We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — talk to your Mitti account contact.
 
 Five things to know before you set it up:
 
-1. **It respects your permissions.** It can only reach what you can already reach
-   in Mitti — the same sites, templates, and records you'd see if you logged in
-   yourself. It can't widen your access, and it can't see anything on behalf of
-   anyone else.
-2. **It only reads.** Your AI tool can't create, edit, or delete anything in your
-   account.
-3. **It's temporary.** This version uses a long-lived API token. The real version
-   will use OAuth, so you can grant an AI tool consent for specific things
-   instead of handing over a token. When that arrives, this one is switched off.
+1. **It respects your permissions.** It can only reach what you can already reach in Mitti — the same sites, templates, and records you'd see if you logged in yourself. It can't widen your access, and it can't see anything on behalf of anyone else.
+2. **It only reads.** Your AI tool can't create, edit, or delete anything in your account.
+3. **It's temporary.** This version uses a long-lived API token. The real version will use OAuth, so you can grant an AI tool consent for specific things instead of handing over a token. When that arrives, this one is switched off.
 4. **It might break.** It hasn't had the hardening a released product gets.
-5. **It isn't covered by standard support.** Don't raise a support ticket — come
-   straight to us by replying to the email that brought you here.
+5. **It isn't covered by standard support.** Don't raise a support ticket — come straight to us by replying to the email that brought you here.
 
 You're getting it early because your feedback decides what we build next.
 
@@ -37,43 +26,27 @@ Four steps, about five minutes.
 
 ### Step 1 — Create your API token
 
-Go to
-[app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens)
-and generate a token from your own account. The
-[help article](https://help.safetyculture.com/000007) walks through it.
+Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) and generate a token from your own account. The [help article](https://help.safetyculture.com/000007) walks through it.
 
-The token is what carries your permissions across to your AI tool — it inherits
-your access, and nothing beyond it.
+The token is what carries your permissions across to your AI tool — it inherits your access, and nothing beyond it.
 
-> **It has to be your own token, not a service account token.** Service account
-> tokens carry far more access than any one person, so a trial run on one would
-> no longer be bounded by your permissions. This trial refuses them. For the same
-> reason, don't ask an admin to make a token and pass it around — whoever uses it
-> would be acting with the token owner's access, not their own. If you can't
-> create your own, wait for the OAuth version.
+> **It has to be your own token, not a service account token.** Service account tokens carry far more access than any one person, so a trial run on one would no longer be bounded by your permissions. This trial refuses them. For the same reason, don't ask an admin to make a token and pass it around — whoever uses it would be acting with the token owner's access, not their own. If you can't create your own, wait for the OAuth version.
 
 Copy the token somewhere safe for the next step. Treat it like a password.
 
 ### Step 2 — Check you have Node.js
 
-The connector runs locally on your machine, and Node.js is what runs it. Open a
-terminal and run:
+The connector runs locally on your machine, and Node.js is what runs it. Open a terminal and run:
 
 ```
 node --version
 ```
 
-If that prints `v20` or higher, you're set. If it errors or shows an older
-version, install the LTS build from
-[nodejs.org/en/download](https://nodejs.org/en/download) — it's a standard
-installer and needs no configuration.
+If that prints `v20` or higher, you're set. If it errors or shows an older version, install the LTS build from [nodejs.org/en/download](https://nodejs.org/en/download) — it's a standard installer and needs no configuration.
 
 ### Step 3 — Connect your AI tool
 
-Mitti MCP is a standard MCP server, so in principle it works with any tool that
-supports MCP. We've done most of our testing in Claude; the rest below are set up
-the same way and should work, but we haven't put them all through their paces.
-Tell us what you find.
+Mitti MCP is a standard MCP server, so in principle it works with any tool that supports MCP. We've done most of our testing in Claude; the rest below are set up the same way and should work, but we haven't put them all through their paces. Tell us what you find.
 
 In every case, swap `TOKEN_GOES_HERE` for the token from Step 1.
 
@@ -89,8 +62,7 @@ claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://git
 <details>
 <summary><b>Claude Desktop</b></summary>
 
-Settings → Developer → Edit Config, then add the `mitti` entry alongside
-anything already in the file:
+Settings → Developer → Edit Config, then add the `mitti` entry alongside anything already in the file:
 
 ```json
 {
@@ -183,17 +155,14 @@ Restart Antigravity afterwards.
 <details>
 <summary><b>ChatGPT — not possible yet</b></summary>
 
-ChatGPT only connects to MCP servers hosted at a public URL. This one runs
-locally on your machine, so there's no way to add it today. That changes with the
-hosted OAuth version.
+ChatGPT only connects to MCP servers hosted at a public URL. This one runs locally on your machine, so there's no way to add it today. That changes with the hosted OAuth version.
 
 </details>
 
 <details>
 <summary><b>Another tool</b></summary>
 
-Any MCP client will accept the same three details — check its documentation for
-where they go:
+Any MCP client will accept the same three details — check its documentation for where they go:
 
 | | |
 | --- | --- |
@@ -205,65 +174,46 @@ where they go:
 
 ### Step 4 — Check it worked
 
-Your tool should list `mitti` as connected — in Claude Code, run `/mcp`; in the
-desktop apps, look for the tools or connectors indicator.
+Your tool should list `mitti` as connected — in Claude Code, run `/mcp`; in the desktop apps, look for the tools or connectors indicator.
 
 Then ask it something simple:
 
 > *"Using Mitti, how many inspections were completed in the last 7 days?"*
 
-A number back means you're running. If not, see
-[Troubleshooting](#troubleshooting).
+A number back means you're running. If not, see [Troubleshooting](#troubleshooting).
 
-The first time it uses a Mitti tool your AI will probably ask permission. That's
-your tool being careful, not an error.
+The first time it uses a Mitti tool your AI will probably ask permission. That's your tool being careful, not an error.
 
 ---
 
 ## What you can ask
 
-Talk to your AI tool the way you normally would — it works out which Mitti data
-to pull.
+Talk to your AI tool the way you normally would — it works out which Mitti data to pull.
 
 - *"How many inspections were completed at each site last month?"*
 - *"Show me every overdue action assigned to the maintenance team."*
 - *"What are the most common issue categories in the last 90 days?"*
 - *"Which assets are due for servicing in the next fortnight?"*
 
-There are over 150 read-only tools, covering inspections, actions, issues, assets
-and maintenance, templates, schedules, training, documents, analytics, sites and
-org structure, users and permissions, contractors, and credentials.
+There are over 150 read-only tools, covering inspections, actions, issues, assets and maintenance, templates, schedules, training, documents, analytics, sites and org structure, users and permissions, contractors, and credentials.
 
-Answers are drawn only from the data your own account can access, so two people
-in the same organisation may get different results from the same question.
+Answers are drawn only from the data your own account can access, so two people in the same organisation may get different results from the same question.
 
 It can't build or edit templates, and it can't change anything in your account.
 
 ## What it can and can't do
 
-**It respects your permissions.** Every request runs as you. Your AI tool reaches
-exactly the sites, templates, inspections, and records you'd reach by logging in
-yourself — no more. If a site is outside your access in Mitti, it's outside your
-AI tool's access too, and it stays that way whatever you ask. Nothing here grants
-new access or lets you see another person's view of the platform.
+**It respects your permissions.** Every request runs as you. Your AI tool reaches exactly the sites, templates, inspections, and records you'd reach by logging in yourself — no more. If a site is outside your access in Mitti, it's outside your AI tool's access too, and it stays that way whatever you ask. Nothing here grants new access or lets you see another person's view of the platform.
 
-**It only reads.** Your AI tool is offered read-only tools and nothing else, so it
-can't create, edit, or delete anything.
+**It only reads.** Your AI tool is offered read-only tools and nothing else, so it can't create, edit, or delete anything.
 
-**Your token is still a password.** The read-only limit applies to what your AI
-tool can do through this connector. The token itself remains fully privileged
-against the Mitti API, so don't paste it into shared documents or commit it to a
-repo, and revoke it at
-[app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens)
-when you're done.
+**Your token is still a password.** The read-only limit applies to what your AI tool can do through this connector. The token itself remains fully privileged against the Mitti API, so don't paste it into shared documents or commit it to a repo, and revoke it at [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) when you're done.
 
-**Your data goes to your AI provider.** Anything your AI tool reads from Mitti
-becomes part of that conversation, under whatever agreement you have with them.
+**Your data goes to your AI provider.** Anything your AI tool reads from Mitti becomes part of that conversation, under whatever agreement you have with them.
 
 ## Telling us how it went
 
-Reply to the email that brought you here. That reaches us directly and it's the
-fastest way to get help if something's broken.
+Reply to the email that brought you here. That reaches us directly and it's the fastest way to get help if something's broken.
 
 Most useful to us:
 
@@ -272,26 +222,19 @@ Most useful to us:
 - What was missing?
 - Anything slow, wrong, or confusing.
 
-Rough notes are fine, screenshots better. We'd rather have something scrappy today
-than something polished next month.
+Rough notes are fine, screenshots better. We'd rather have something scrappy today than something polished next month.
 
 ## Troubleshooting
 
-**"MITTI_API_TOKEN is not set"** — the token didn't reach the connector. Redo
-Step 3 and check for a typo in the `env` section.
+**"MITTI_API_TOKEN is not set"** — the token didn't reach the connector. Redo Step 3 and check for a typo in the `env` section.
 
-**"This token belongs to a service user"** — that's a service account token.
-Generate one from your own account instead (Step 1).
+**"This token belongs to a service user"** — that's a service account token. Generate one from your own account instead (Step 1).
 
-**`spawn npx ENOENT` on Windows** — on Windows outside WSL, some tools can't
-launch `npx` directly. Wrap it: `-- cmd /c npx -y <url>` on the command line, or
-in JSON set `"command": "cmd"` with `"args": ["/c", "npx", "-y", "<url>"]`.
+**`spawn npx ENOENT` on Windows** — on Windows outside WSL, some tools can't launch `npx` directly. Wrap it: `-- cmd /c npx -y <url>` on the command line, or in JSON set `"command": "cmd"` with `"args": ["/c", "npx", "-y", "<url>"]`.
 
-**Nothing happens, or it won't start** — check `node --version` reports v20 or
-newer. This is the most common cause.
+**Nothing happens, or it won't start** — check `node --version` reports v20 or newer. This is the most common cause.
 
-**A tool you expected isn't there** — most likely it isn't marked read-only
-upstream, so this trial hides it. Tell us which one.
+**A tool you expected isn't there** — most likely it isn't marked read-only upstream, so this trial hides it. Tell us which one.
 
 Still stuck? Reply to our email and we'll work it out with you.
 
@@ -302,42 +245,28 @@ Still stuck? Reply to our email and we'll work it out with you.
 | `MITTI_API_TOKEN` | yes | — | Your personal Mitti API token. |
 | `MITTI_API_URL` | no | `https://api.safetyculture.com` | Only change this if we've given you a different endpoint. |
 
-The API hostname is unchanged by the Mitti rebrand — no endpoints moved, so
-existing tokens and integrations keep working as before.
+The API hostname is unchanged by the Mitti rebrand — no endpoints moved, so existing tokens and integrations keep working as before.
 
 ## For the technically curious
 
-This repo is a small stdio proxy. Your AI tool launches it locally; it forwards
-requests to the Mitti MCP endpoint using your token and returns the responses. It
-stores nothing.
+This repo is a small stdio proxy. Your AI tool launches it locally; it forwards requests to the Mitti MCP endpoint using your token and returns the responses. It stores nothing.
 
 Two guardrails run inside it:
 
-- **Read-only filtering** — a tool is exposed only if it declares
-  `annotations.readOnlyHint: true`. Anything unannotated is treated as capable of
-  writing and hidden; we don't guess from names. See
-  [`src/read-only.ts`](src/read-only.ts).
-- **Personal tokens only** — at startup it resolves the token's seat type and
-  refuses service accounts. See [`src/token-guard.ts`](src/token-guard.ts).
+- **Read-only filtering** — a tool is exposed only if it declares `annotations.readOnlyHint: true`. Anything unannotated is treated as capable of writing and hidden; we don't guess from names. See [`src/read-only.ts`](src/read-only.ts).
+- **Personal tokens only** — at startup it resolves the token's seat type and refuses service accounts. See [`src/token-guard.ts`](src/token-guard.ts).
 
-Both are trial guardrails living in this proxy rather than enforced by the API,
-which is part of why this version is time-limited. Scoped, consent-based
-enforcement is what the OAuth version is for.
+Both are trial guardrails living in this proxy rather than enforced by the API, which is part of why this version is time-limited. Scoped, consent-based enforcement is what the OAuth version is for.
 
 Logs go to stderr; stdout is reserved for the MCP transport.
 
-Installs pull a prebuilt, dependency-free bundle from the GitHub release — no
-transitive packages, no build toolchain. `latest/download` always resolves to the
-newest release; to pin a version, use a tag instead, for example
-`.../releases/download/v0.2.0/mitti-mcp-0.2.0.tgz`.
+Installs pull a prebuilt, dependency-free bundle from the GitHub release — no transitive packages, no build toolchain. `latest/download` always resolves to the newest release; to pin a version, use a tag instead, for example `.../releases/download/v0.2.0/mitti-mcp-0.2.0.tgz`.
 
 Licensed under Apache-2.0.
 
 <details>
 <summary>Upgrading from an earlier build</summary>
 
-The environment variables were previously `SC_API_TOKEN` and `SC_API_URL`. The
-old names are no longer read — rename them to `MITTI_API_TOKEN` and
-`MITTI_API_URL`.
+The environment variables were previously `SC_API_TOKEN` and `SC_API_URL`. The old names are no longer read — rename them to `MITTI_API_TOKEN` and `MITTI_API_URL`.
 
 </details>
