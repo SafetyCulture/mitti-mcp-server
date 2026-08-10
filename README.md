@@ -1,19 +1,19 @@
 # Mitti MCP
 
-Connect your Mitti data to the AI tools you already use. Ask questions in plain language and get answers from your Mitti account — limited to the data you can already access in the platform.
+Connect your Mitti data to the AI tools you already use. Ask questions in plain language and get answers from your Mitti account.
 
 ---
 
 ## Read this first
 
-**This is a pre early access trial, by invitation.** We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — talk to your Mitti account contact.
+**This is a pre-Early Access trial, by invitation.** We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — talk to your Mitti account contact.
 
 Five things to know before you set it up:
 
-1. **It respects your permissions.** It can only reach what you can already reach in Mitti — the same sites, templates, and records you'd see if you logged in yourself. It can't widen your access, and it can't see anything on behalf of anyone else.
-2. **It only reads.** Your AI tool can't create, edit, or delete anything in your account.
-3. **It's temporary.** This version uses a long-lived API token. The real version will use OAuth, so you can grant an AI tool consent for specific things instead of handing over a token. When that arrives, this one is switched off.
-4. **It might break.** It hasn't had the hardening a released product gets.
+1. **It respects your existing user permissions.** It can only access what your account already has access to in Mitti, nothing more. It doesn't widen your access, and it can't see anything on behalf of anyone else.
+2. **It only has read access.** Your AI tool can't create, edit, or delete anything in your account. This is a safety precaution for now. Write access will be available in a future iteration.
+3. **This is a short-term trial.** This version is just for pre-Early Access testing, and will be deprecated once the full version is ready.
+4. **It might break.** As this is pre-Early Access, expect it to be rough around the edges. Your feedback will help make it better.
 5. **It isn't covered by standard support.** Don't raise a support ticket — come straight to us by replying to the email that brought you here.
 
 You're getting it early because your feedback decides what we build next.
@@ -22,36 +22,43 @@ You're getting it early because your feedback decides what we build next.
 
 ## Setup
 
-Four steps, about five minutes.
+Follow these steps to get started.
 
 ### Step 1 — Create your API token
 
-Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) and generate a token from your own account. The [help article](https://help.safetyculture.com/000007) walks through it.
+Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) and generate a token from your own account. Here's a full [help article](https://help.safetyculture.com/000007).
 
-The token is what carries your permissions across to your AI tool — it inherits your access, and nothing beyond it.
+It must be an API token for your user account, not a service account token.
 
-> **It has to be your own token, not a service account token.** Service account tokens carry far more access than any one person, so a trial run on one would no longer be bounded by your permissions. This trial refuses them. For the same reason, don't ask an admin to make a token and pass it around — whoever uses it would be acting with the token owner's access, not their own. If you can't create your own, wait for the OAuth version.
+**Treat the token like a password — it provides full access to your account**
 
-Copy the token somewhere safe for the next step. Treat it like a password.
+- Do not share it with anyone
+- Store it somewhere safe while you complete setup
+- If you have security concerns at any point, revoke it by going to the same page.
 
 ### Step 2 — Check you have Node.js
 
-The connector runs locally on your machine, and Node.js is what runs it. Open a terminal and run:
+The connector runs locally on your machine, and Node.js is what runs it.
 
-```
-node --version
-```
+1. Open the terminal on your computer
+2. Type `node --version` and hit enter
 
-If that prints `v20` or higher, you're set. If it errors or shows an older version, install the LTS build from [nodejs.org/en/download](https://nodejs.org/en/download) — it's a standard installer and needs no configuration.
+If it says `v20` or higher, proceed to step 3.
+
+If it errors or shows an older version, download the installer [nodejs.org/en/download](https://nodejs.org/en/download).
 
 ### Step 3 — Connect your AI tool
 
-Mitti MCP is a standard MCP server, so in principle it works with any tool that supports MCP. We've done most of our testing in Claude; the rest below are set up the same way and should work, but we haven't put them all through their paces. Tell us what you find.
+Mitti MCP is a standard MCP server, so in principle it works with any tool that supports MCP.
 
-In every case, swap `TOKEN_GOES_HERE` for the token from Step 1.
+We've done most of our testing in Claude. We haven't put the others through all their paces yet, so tell us what you find.
+
+**In every case, swap `TOKEN_GOES_HERE` for the token from Step 1.**
 
 <details open>
 <summary><b>Claude Code</b></summary>
+
+After you've swapped in your token, paste this into your terminal and hit enter.
 
 ```
 claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
@@ -193,21 +200,12 @@ Talk to your AI tool the way you normally would — it works out which Mitti dat
 - *"How many inspections were completed at each site last month?"*
 - *"Show me every overdue action assigned to the maintenance team."*
 - *"What are the most common issue categories in the last 90 days?"*
-- *"Which assets are due for servicing in the next fortnight?"*
 
-There are over 150 read-only tools, covering inspections, actions, issues, assets and maintenance, templates, schedules, training, documents, analytics, sites and org structure, users and permissions, contractors, and credentials.
-
-Answers are drawn only from the data your own account can access, so two people in the same organisation may get different results from the same question.
-
-It can't build or edit templates, and it can't change anything in your account.
-
-## What it can and can't do
-
-**It respects your permissions.** Every request runs as you. Your AI tool reaches exactly the sites, templates, inspections, and records you'd reach by logging in yourself — no more. If a site is outside your access in Mitti, it's outside your AI tool's access too, and it stays that way whatever you ask. Nothing here grants new access or lets you see another person's view of the platform.
+## Things to keep in mind
 
 **It only reads.** Your AI tool is offered read-only tools and nothing else, so it can't create, edit, or delete anything.
 
-**Your token is still a password.** The read-only limit applies to what your AI tool can do through this connector. The token itself remains fully privileged against the Mitti API, so don't paste it into shared documents or commit it to a repo, and revoke it at [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) when you're done.
+**Your token has full access to your account.** The read-only limit applies to what your AI tool can do through this connector. The token itself remains fully privileged against the Mitti API, so don't paste it into shared documents or pass it around. Revoke it any time at [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens).
 
 **Your data goes to your AI provider.** Anything your AI tool reads from Mitti becomes part of that conversation, under whatever agreement you have with them.
 
@@ -218,11 +216,10 @@ Reply to the email that brought you here. That reaches us directly and it's the 
 Most useful to us:
 
 - What did you try, and did it work?
-- Which questions did you find yourself asking most?
 - What was missing?
 - Anything slow, wrong, or confusing.
 
-Rough notes are fine, screenshots better. We'd rather have something scrappy today than something polished next month.
+Rough notes are fine, screenshots better. We'd rather have something scrappy today than something polished when you have time to draft a proper email.
 
 ## Troubleshooting
 
