@@ -32,7 +32,7 @@ Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/a
 
 It must be an API token for your user account, not a service account token.
 
-**Treat the token like a password — it provides full read <u>and write</u> access to your account:**
+**Treat the token like a password — the token itself provides full read <u>and write</u> access to your account, even though the connector limits your AI tool to reading:**
 - Do not share it with anyone.
 - Store it somewhere safe while you complete setup.
 - If you have security concerns at any point, revoke it by going back to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens).
@@ -119,45 +119,9 @@ Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect, an
 </details>
 
 <details>
-<summary><b>Antigravity CLI (Google)</b></summary>
+<summary><b>Antigravity — app or CLI (Google)</b></summary>
 
-**On a Mac** — paste this into Terminal and hit enter:
-
-```
-mkdir -p ~/.gemini/config && touch ~/.gemini/config/mcp_config.json && open -e ~/.gemini/config/mcp_config.json
-```
-
-**On Windows** — paste this into Command Prompt and hit enter:
-
-```
-mkdir "%USERPROFILE%\.gemini\config" 2>nul & notepad "%USERPROFILE%\.gemini\config\mcp_config.json"
-```
-
-If the file is empty, paste in the whole block below. If it already has something in it, add the `mitti` entry inside the existing `mcpServers` section:
-
-```json
-{
-  "mcpServers": {
-    "mitti": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
-      ],
-      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
-    }
-  }
-}
-```
-
-Save the file, then start a new `agy` session.
-
-</details>
-
-<details>
-<summary><b>Antigravity App (Google)</b></summary>
-
-Antigravity keeps its MCP servers in a config file, and there's no link to it from inside the app. The quickest way to open it is from a terminal.
+The app and the CLI (`agy`) share one config file, so this covers both. There's no link to it from inside the app, so the quickest way is to open it from a terminal.
 
 **On a Mac** — paste this into Terminal and hit enter:
 
@@ -188,39 +152,7 @@ The file opens in a plain text editor. If it's empty, paste in the whole block b
 }
 ```
 
-Save the file, then restart Antigravity.
-
-</details>
-
-<details>
-<summary><b>GitHub Copilot (VS Code)</b></summary>
-
-Command Palette → **MCP: Open User Configuration**, then add:
-
-```json
-{
-  "servers": {
-    "mitti": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
-      ],
-      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
-    }
-  }
-}
-```
-
-Use `.vscode/mcp.json` in a project instead if you only want it there.
-
-</details>
-
-<details>
-<summary><b>ChatGPT — not possible yet</b></summary>
-
-ChatGPT only connects to MCP servers hosted at a public URL. This one runs locally on your machine, so there's no way to add it today. That changes with the hosted OAuth version.
+Save the file, then restart Antigravity, or start a new `agy` session if you're using the CLI.
 
 </details>
 
