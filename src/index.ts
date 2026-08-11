@@ -47,6 +47,13 @@ function fatal(message: string): never {
   process.exit(1);
 }
 
+// First line out, before anything can fail. Which build is running is the first
+// question every investigation asks, and answering it from a log beats inferring
+// it from which other lines happen to be present — an npx spec that never changes
+// means a customer can be running a months-old build while `latest` says
+// otherwise.
+log(`version ${VERSION}`);
+
 let config;
 try {
   config = resolveConfig(process.env);
