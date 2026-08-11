@@ -56,13 +56,15 @@ export interface ToolCallOutcome {
   errorMessage?: string;
 }
 
-/** What the local client said about itself during the `initialize` handshake. */
+/**
+ * What the local client said about itself during the `initialize` handshake —
+ * whatever it declares, verbatim. The values aren't standardised: each vendor
+ * picks its own string and can change it between versions.
+ */
 export interface ObservedClient {
   /** `clientInfo.name` — e.g. `claude-code`, `cursor`, `codex`. */
   name?: string;
   version?: string;
-  /** The negotiated MCP protocol version, from the initialize *response*. */
-  protocolVersion?: string;
 }
 
 /**
@@ -72,7 +74,6 @@ export interface ObservedClient {
  */
 export interface BridgeObserver {
   onToolCall?: (outcome: ToolCallOutcome) => void;
-  /** Called as the handshake reveals fields, so it may fire more than once. */
   onClient?: (client: ObservedClient) => void;
 }
 
@@ -118,8 +119,6 @@ export function createBridge(
   const verdicts = new Map<string, boolean>();
   /** Dispatched `tools/call`s awaiting a response, so each can be timed. */
   const pendingCalls = new Map<string, { toolName: string; startedAt: number }>();
-  /** Ids of in-flight `initialize` requests, whose responses carry the protocol version. */
-  const pendingInitialize = new Set<string>();
 
   /** Run an observer callback; its failure is its own problem, not the relay's. */
   function notify(report: () => void): void {
@@ -229,7 +228,6 @@ export function createBridge(
             })
           );
         }
-        pendingInitialize.add(idKey(message.id));
       }
       toRemote(message);
       return;
@@ -263,13 +261,6 @@ export function createBridge(
     }
 
     const id = (message as { id?: RequestId }).id;
-    if (id != null && pendingInitialize.delete(idKey(id)) && isJSONRPCResultResponse(message)) {
-      const protocolVersion = (message.result as { protocolVersion?: unknown }).protocolVersion;
-      if (typeof protocolVersion === 'string') {
-        notify(() => observer.onClient?.({ protocolVersion }));
-      }
-    }
-
     // Take the pending call before forwarding, so the client isn't kept waiting
     // on bookkeeping — but report it after, for the same reason.
     const outcome = id != null ? takeToolCallOutcome(id, message) : undefined;

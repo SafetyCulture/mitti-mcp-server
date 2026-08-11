@@ -88,10 +88,25 @@ createBridge(local, remote, log, {
 local.onclose = () => void shutdown(0);
 remote.onclose = () => void shutdown(0);
 local.onerror = (error) => log(`stdio error: ${error.message}`);
-remote.onerror = (error) => log(`remote error: ${error.message}`);
+// Closing the remote transport aborts whatever streams it still has open, and
+// those aborts arrive here as errors. They're ours, and they're expected — don't
+// report them as though something went wrong.
+remote.onerror = (error) => {
+  if (!shuttingDown) log(`remote error: ${error.message}`);
+};
 
 process.on('SIGINT', () => void shutdown(0));
 process.on('SIGTERM', () => void shutdown(0));
+
+// The client closing stdin is how an MCP stdio server is told to go away, and
+// nothing else reports it: StdioServerTransport attaches only 'data' and 'error'
+// to stdin, and fires `onclose` only when *we* close it. Without these listeners
+// the proxy leans on the event loop draining instead — which works right up until
+// a tool call leaves a keep-alive socket open to Mitti, and then the process
+// outlives the client that spawned it. Every session that did any real work would
+// leak one.
+process.stdin.on('end', () => void shutdown(0));
+process.stdin.on('close', () => void shutdown(0));
 
 // Reject service-user tokens before opening the relay — see token-guard.ts.
 try {

@@ -212,7 +212,7 @@ test('a blocked tools/call is never reported — it never ran', () => {
 });
 
 test('the client identifies itself from the initialize handshake', () => {
-  const { local, remote, clients } = setupObserved();
+  const { local, clients } = setupObserved();
 
   receive(local, {
     jsonrpc: '2.0',
@@ -220,9 +220,24 @@ test('the client identifies itself from the initialize handshake', () => {
     method: 'initialize',
     params: { clientInfo: { name: 'claude-code', version: '2.1.0' }, protocolVersion: '2025-06-18' },
   });
-  receive(remote, { jsonrpc: '2.0', id: 'init-1', result: { protocolVersion: '2025-06-18' } });
 
-  assert.deepEqual(clients, [{ name: 'claude-code', version: '2.1.0' }, { protocolVersion: '2025-06-18' }]);
+  assert.deepEqual(clients, [{ name: 'claude-code', version: '2.1.0' }]);
+});
+
+// Whatever a client declares is passed through verbatim; a malformed name is
+// reported as unknown rather than guessed at or crashing the handshake.
+test('a non-string client name is reported as undefined, and initialize still relays', () => {
+  const { local, remote, clients } = setupObserved();
+
+  receive(local, {
+    jsonrpc: '2.0',
+    id: 'init-2',
+    method: 'initialize',
+    params: { clientInfo: { name: 42 }, protocolVersion: '2025-06-18' },
+  });
+
+  assert.deepEqual(clients, [{ name: undefined, version: undefined }]);
+  assert.ok(remote.sent.some((m) => (m as { id?: unknown }).id === 'init-2'));
 });
 
 test('a cancelled call stops being tracked, so its timing entry cannot linger', () => {
