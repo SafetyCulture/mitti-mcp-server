@@ -109,12 +109,6 @@ jobs:
             exit 1
           fi
           npm run bundle:release
-          # Verify rather than assume: a define that silently failed to apply
-          # would ship a release that reports nothing, and look fine doing it.
-          if ! grep -qF "$PUBLIC_AMPLITUDE_API_KEY" dist/mitti-mcp.mjs; then
-            echo "::error::the analytics key was not baked into the bundle"
-            exit 1
-          fi
 
       # The bundle must run with no node_modules at all — that's the whole
       # point of shipping it. Verify rather than assume: a bad token exits
@@ -138,7 +132,12 @@ jobs:
 
       - name: Pack
         run: |
-          tarball=$(npm pack --silent | tail -1)
+          # --ignore-scripts is load-bearing. `npm pack` runs the `prepare`
+          # script, which is `npm run bundle` — the build *without* the analytics
+          # key. It would silently overwrite the bundle the step above just built,
+          # and that is exactly what shipped a keyless v0.3.0 while every check
+          # passed. The bundle is already built; packing must not rebuild it.
+          tarball=$(npm pack --ignore-scripts --silent | tail -1)
           echo "tarball=$tarball" >> "$GITHUB_ENV"
           # An unversioned copy too, so `releases/latest/download/mitti-mcp.tgz`
           # is a stable URL that docs and configs never have to be updated for.
@@ -147,6 +146,24 @@ jobs:
           # pointing at `latest/download/sc-mcp.tgz` keeps resolving. Drop this
           # once early-access users have moved to the Mitti URL.
           cp "$tarball" sc-mcp.tgz
+
+      # Check the artifacts that actually ship, not an intermediate build. The
+      # first version of this check ran before Pack, passed, and then watched
+      # `npm pack` replace the file it had just approved — so it now reads the
+      # packed tarball and the standalone asset, which are what customers get.
+      - name: Verify the published bundles report usage
+        env:
+          PUBLIC_AMPLITUDE_API_KEY: ${{ secrets.PUBLIC_AMPLITUDE_API_KEY }}
+        run: |
+          if ! tar -xzOf "$tarball" package/dist/mitti-mcp.mjs | grep -qF "$PUBLIC_AMPLITUDE_API_KEY"; then
+            echo "::error::the tarball's bundle has no analytics key — it would report nothing"
+            exit 1
+          fi
+          if ! grep -qF "$PUBLIC_AMPLITUDE_API_KEY" dist/mitti-mcp.mjs; then
+            echo "::error::the standalone mitti-mcp.mjs asset has no analytics key"
+            exit 1
+          fi
+          echo "both published bundles carry the analytics key"
 
       # Confirm the packed tarball installs with no transitive dependencies.
       - name: Verify the tarball installs clean

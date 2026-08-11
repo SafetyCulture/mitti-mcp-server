@@ -1,6 +1,6 @@
 {
   "name": "mitti-mcp",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "Mitti MCP proxy — bridges a local stdio MCP client to the Mitti MCP endpoint using an API token.",
   "license": "Apache-2.0",
   "type": "module",
