@@ -4,17 +4,17 @@ Connect your Mitti data to the AI tools you already use. Ask questions in plain 
 
 ---
 
-## Important - read this first
+## Important — read this first
 
 **This is a pre-Early Access trial, by invitation only.**
 
-We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — please reach out to your Mitti account contact and we'll note your interest.
+We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — please get in touch with your Mitti account contact and we'll note your interest.
 
 **If you have been invited to test, here are the key things you need to know:**
 
 1. **It respects your existing user permissions.** It can only access what your account already has access to in Mitti, nothing more. It doesn't widen your access, and it can't see anything on behalf of anyone else.
 2. **It only has read access.** Your AI tool can't create, edit, or delete anything in your account. This is a safety precaution for now, to avoid accidental data loss. Write access will be available in a future iteration.
-3. **This is a short-term trial.** This version is just for pre-Early Access testing, and will be deprecated once a better version is ready.
+3. **This is a short-term trial.** This version is just for pre-Early Access testing and will be deprecated once a better version is ready.
 4. **It might break.** As this is pre-Early Access, expect it to be rough around the edges. Your feedback will help make it better.
 5. **It isn't covered by standard support.** Don't raise a support ticket — come straight to us by replying to the email that brought you here.
 
@@ -33,8 +33,8 @@ Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/a
 It must be an API token for your user account, not a service account token.
 
 **Treat the token like a password — it provides full read <u>and write</u> access to your account:**
-- Do not share it with anyone
-- Store it somewhere safe while you complete setup
+- Do not share it with anyone.
+- Store it somewhere safe while you complete setup.
 - If you have security concerns at any point, revoke it by going back to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens).
 
 ### Step 2 — Check you have Node.js
@@ -54,7 +54,7 @@ Mitti MCP is a standard MCP server, so in principle it works with any tool that 
 
 We've done most of our testing in Claude, and some light testing in Gemini and Codex. We haven't put these through all their paces yet, so tell us what you find.
 
-**In every case, swap `TOKEN_GOES_HERE` with the token you generated in Step 1.**
+**In every case, swap `TOKEN_GOES_HERE` for the token you generated in Step 1.**
 
 <details open>
 <summary><b>Claude Code</b></summary>
@@ -63,7 +63,7 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 ```
 claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
-Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connect and you're on your way.
+Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connect, and you're on your way.
 
 </details>
 
@@ -71,7 +71,7 @@ Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connec
 <summary><b>Claude Desktop</b></summary>
 
 1. Go to Settings → Developer and click Edit Config
-2. Open the `claude_desktop_config.json`
+2. Open `claude_desktop_config.json`
 3. Add the `mitti` entry alongside anything already in the file, within the `mcpServers` section:
 
 ```json
@@ -101,7 +101,7 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 ```
 codex mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
-Then **open a <u>new</u> Codex session**, wait for the Mitti MCP to connect and you're on your way.
+Then **open a <u>new</u> Codex session**, wait for the Mitti MCP to connect, and you're on your way.
 
 </details>
 
@@ -114,16 +114,12 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 gemini mcp add -s user -e MITTI_API_TOKEN=TOKEN_GOES_HERE mitti npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
 
-Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect and you're on your way.
+Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect, and you're on your way.
 
 </details>
 
 <details>
 <summary><b>Antigravity CLI (Google)</b></summary>
-
-The Antigravity CLI (`agy`) is a separate download from the Antigravity app — you don't need the app to use it. If you haven't got it, install it first from [Google's install guide](https://antigravity.google/docs/cli/install).
-
-`agy` has no `mcp add` command, so you add Mitti by editing its config file. Open it from a terminal:
 
 **On a Mac** — paste this into Terminal and hit enter:
 
@@ -155,8 +151,6 @@ If the file is empty, paste in the whole block below. If it already has somethin
 ```
 
 Save the file, then start a new `agy` session.
-
-The CLI and the app read the same file, so if you've already set up one of them, the other picks it up too.
 
 </details>
 
@@ -253,7 +247,7 @@ Then ask it something simple:
 
 A number back means you're running. If not, see [Troubleshooting](#troubleshooting).
 
-The first time it uses a Mitti tool your AI will probably ask permission. That's your tool being careful, not an error.
+The first time it uses a Mitti tool, your AI tool will probably ask permission. That's your tool being careful, not an error.
 
 ---
 
