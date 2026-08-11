@@ -4,19 +4,21 @@ Connect your Mitti data to the AI tools you already use. Ask questions in plain 
 
 ---
 
-## Read this first
+## Important - read this first
 
-**This is a pre-Early Access trial, by invitation.** We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — talk to your Mitti account contact.
+**This is a pre-Early Access trial, by invitation only.**
 
-Five things to know before you set it up:
+We're testing with a small group of customers before we build the full version. If we haven't reached out to you, this isn't available for your account just yet — please reach out to your Mitti account contact and we'll note your interest.
+
+**If you have been invited to test, here are the key things you need to know:**
 
 1. **It respects your existing user permissions.** It can only access what your account already has access to in Mitti, nothing more. It doesn't widen your access, and it can't see anything on behalf of anyone else.
-2. **It only has read access.** Your AI tool can't create, edit, or delete anything in your account. This is a safety precaution for now. Write access will be available in a future iteration.
-3. **This is a short-term trial.** This version is just for pre-Early Access testing, and will be deprecated once the full version is ready.
+2. **It only has read access.** Your AI tool can't create, edit, or delete anything in your account. This is a safety precaution for now, to avoid accidental data loss. Write access will be available in a future iteration.
+3. **This is a short-term trial.** This version is just for pre-Early Access testing, and will be deprecated once a better version is ready.
 4. **It might break.** As this is pre-Early Access, expect it to be rough around the edges. Your feedback will help make it better.
 5. **It isn't covered by standard support.** Don't raise a support ticket — come straight to us by replying to the email that brought you here.
 
-You're getting it early because your feedback decides what we build next.
+You're getting it early because your feedback helps us decide what to build next.
 
 ---
 
@@ -30,46 +32,47 @@ Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/a
 
 It must be an API token for your user account, not a service account token.
 
-**Treat the token like a password — it provides full access to your account**
-
+**Treat the token like a password — it provides full read <u>and write</u> access to your account:**
 - Do not share it with anyone
 - Store it somewhere safe while you complete setup
-- If you have security concerns at any point, revoke it by going to the same page.
+- If you have security concerns at any point, revoke it by going back to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens).
 
 ### Step 2 — Check you have Node.js
 
-The connector runs locally on your machine, and Node.js is what runs it.
+The connector runs locally on your computer, and Node.js is what runs it.
 
-1. Open a terminal — Terminal on a Mac, Command Prompt or PowerShell on Windows
+1. Open a terminal: Terminal on a Mac, Command Prompt or PowerShell on Windows
 2. Type `node --version` and hit enter
 
-If it says `v20` or higher, proceed to step 3.
+If it says `v20` or higher, proceed to Step 3.
 
-If it errors or shows an older version, download the installer [nodejs.org/en/download](https://nodejs.org/en/download).
+If it errors or shows an older version, download the installer from [nodejs.org/en/download](https://nodejs.org/en/download) and follow the steps.
 
 ### Step 3 — Connect your AI tool
 
 Mitti MCP is a standard MCP server, so in principle it works with any tool that supports MCP.
 
-We've done most of our testing in Claude. We haven't put the others through all their paces yet, so tell us what you find.
+We've done most of our testing in Claude, and some light testing in Gemini and Codex. We haven't put these through all their paces yet, so tell us what you find.
 
-**In every case, swap `TOKEN_GOES_HERE` for the token from Step 1.**
+**In every case, swap `TOKEN_GOES_HERE` with the token you generated in Step 1.**
 
 <details open>
 <summary><b>Claude Code</b></summary>
 
 After you've swapped in your token, paste this into your terminal and hit enter.
-
 ```
 claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
+Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connect and you're on your way.
 
 </details>
 
 <details>
 <summary><b>Claude Desktop</b></summary>
 
-Settings → Developer → Edit Config, then add the `mitti` entry alongside anything already in the file:
+1. Go to Settings → Developer and click Edit Config
+2. Open the `claude_desktop_config.json`
+3. Add the `mitti` entry alongside anything already in the file, within the `mcpServers` section:
 
 ```json
 {
@@ -91,11 +94,74 @@ Restart Claude Desktop afterwards.
 </details>
 
 <details>
-<summary><b>Codex CLI</b></summary>
+<summary><b>Codex CLI (OpenAI)</b></summary>
+
+After you've swapped in your token, paste this into your terminal and hit enter.
 
 ```
 codex mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
+Then **open a <u>new</u> Codex session**, wait for the Mitti MCP to connect and you're on your way.
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+After you've swapped in your token, paste this into your terminal and hit enter.
+
+```
+gemini mcp add -s user -e MITTI_API_TOKEN=TOKEN_GOES_HERE mitti npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
+```
+
+Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect and you're on your way.
+
+</details>
+
+<details>
+<summary><b>Antigravity CLI (Google)</b></summary>
+
+The Antigravity CLI (`agy`) has no `mcp add` command, but it reads the same config file as the Antigravity app — so you only set this up once and both pick it up.
+
+Follow the **Antigravity App (Google)** steps below, then start a new `agy` session.
+
+</details>
+
+<details>
+<summary><b>Antigravity App (Google)</b></summary>
+
+Antigravity keeps its MCP servers in a config file, and there's no link to it from inside the app. The quickest way to open it is from a terminal.
+
+**On a Mac** — paste this into Terminal and hit enter:
+
+```
+mkdir -p ~/.gemini/config && touch ~/.gemini/config/mcp_config.json && open -e ~/.gemini/config/mcp_config.json
+```
+
+**On Windows** — paste this into Command Prompt and hit enter:
+
+```
+mkdir "%USERPROFILE%\.gemini\config" 2>nul & notepad "%USERPROFILE%\.gemini\config\mcp_config.json"
+```
+
+The file opens in a plain text editor. If it's empty, paste in the whole block below. If it already has something in it, add the `mitti` entry inside the existing `mcpServers` section:
+
+```json
+{
+  "mcpServers": {
+    "mitti": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
+      ],
+      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
+    }
+  }
+}
+```
+
+Save the file, then restart Antigravity.
 
 </details>
 
@@ -121,41 +187,6 @@ Command Palette → **MCP: Open User Configuration**, then add:
 ```
 
 Use `.vscode/mcp.json` in a project instead if you only want it there.
-
-</details>
-
-<details>
-<summary><b>Gemini CLI</b></summary>
-
-```
-gemini mcp add -s user -e MITTI_API_TOKEN=TOKEN_GOES_HERE mitti npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
-```
-
-Drop `-s user` to add it to the current project only.
-
-</details>
-
-<details>
-<summary><b>Antigravity</b></summary>
-
-Add the `mitti` entry to `~/.gemini/config/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "mitti": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
-      ],
-      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
-    }
-  }
-}
-```
-
-Restart Antigravity afterwards.
 
 </details>
 
@@ -209,12 +240,13 @@ Talk to your AI tool the way you normally would — it works out which Mitti dat
 
 **Your data goes to your AI provider.** Anything your AI tool reads from Mitti becomes part of that conversation, under whatever agreement you have with them.
 
-## Telling us how it went
+## Give us feedback
+
+We're hungry for your feedback, so please share it with us — the good and the bad.
 
 Reply to the email that brought you here. That reaches us directly and it's the fastest way to get help if something's broken.
 
 Most useful to us:
-
 - What did you try, and did it work?
 - What was missing?
 - Anything slow, wrong, or confusing.
@@ -234,15 +266,6 @@ Rough notes are fine, screenshots better. We'd rather have something scrappy tod
 **A tool you expected isn't there** — most likely it isn't marked read-only upstream, so this trial hides it. Tell us which one.
 
 Still stuck? Reply to our email and we'll work it out with you.
-
-## Configuration
-
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `MITTI_API_TOKEN` | yes | — | Your personal Mitti API token. |
-| `MITTI_API_URL` | no | `https://api.safetyculture.com` | Only change this if we've given you a different endpoint. |
-
-The API hostname is unchanged by the Mitti rebrand — no endpoints moved, so existing tokens and integrations keep working as before.
 
 ## For the technically curious
 
