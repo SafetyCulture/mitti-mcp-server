@@ -35,6 +35,48 @@ export interface BridgeTransport {
 }
 
 /**
+ * Outcome of one dispatched `tools/call`, reported once its response arrives.
+ *
+ * This is the whole surface the observer sees — deliberately. It carries no tool
+ * arguments and nothing from the tool's result, so a downstream reporter cannot
+ * leak customer data even by accident.
+ */
+export interface ToolCallOutcome {
+  toolName: string;
+  durationMs: number;
+  isError: boolean;
+  /**
+   * Set only for a JSON-RPC-level failure, where the message describes the
+   * protocol or transport ("Method not found", "request timed out").
+   *
+   * An in-band failure — `result.isError` on an otherwise fine response — is
+   * reported as `isError` with no message, because there the text is the tool's
+   * own output: "no site named 'Acme HQ'" is customer data, not diagnostics.
+   */
+  errorMessage?: string;
+}
+
+/** What the local client said about itself during the `initialize` handshake. */
+export interface ObservedClient {
+  /** `clientInfo.name` — e.g. `claude-code`, `cursor`, `codex`. */
+  name?: string;
+  version?: string;
+  /** The negotiated MCP protocol version, from the initialize *response*. */
+  protocolVersion?: string;
+}
+
+/**
+ * Optional hooks for reporting what crosses the bridge. Both are called
+ * best-effort: a throwing observer is logged and ignored, never propagated
+ * into the relay.
+ */
+export interface BridgeObserver {
+  onToolCall?: (outcome: ToolCallOutcome) => void;
+  /** Called as the handshake reveals fields, so it may fire more than once. */
+  onClient?: (client: ObservedClient) => void;
+}
+
+/**
  * Request methods relayed to Mitti without further inspection —
  * reads, plus `tools/call`, which gets its own policy check below. Notably
  * absent: `completion/complete` and the `tasks/*` family, neither of which
@@ -64,11 +106,29 @@ const RELAYED_NOTIFICATION_METHODS = new Set([
 const idKey = (id: RequestId): string => `${typeof id}:${id}`;
 
 /** Wire the two transports together, enforcing the read-only policy in both directions. */
-export function createBridge(local: BridgeTransport, remote: BridgeTransport, log: (message: string) => void): void {
+export function createBridge(
+  local: BridgeTransport,
+  remote: BridgeTransport,
+  log: (message: string) => void,
+  observer: BridgeObserver = {}
+): void {
   /** Ids of in-flight `tools/list` requests, so their responses can be filtered. */
   const pendingToolsList = new Set<string>();
   /** Read-only verdicts learned from `tools/list`, keyed by tool name. */
   const verdicts = new Map<string, boolean>();
+  /** Dispatched `tools/call`s awaiting a response, so each can be timed. */
+  const pendingCalls = new Map<string, { toolName: string; startedAt: number }>();
+  /** Ids of in-flight `initialize` requests, whose responses carry the protocol version. */
+  const pendingInitialize = new Set<string>();
+
+  /** Run an observer callback; its failure is its own problem, not the relay's. */
+  function notify(report: () => void): void {
+    try {
+      report();
+    } catch (error: unknown) {
+      log(`error reporting usage: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   function toRemote(message: JSONRPCMessage): void {
     remote.send(message).catch((error: unknown) => {
@@ -144,6 +204,7 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
         return;
       }
 
+      pendingCalls.set(idKey(message.id), { toolName: name, startedAt: performance.now() });
       toRemote(message);
       return;
     }
@@ -157,11 +218,33 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
       if (method === 'tools/list') {
         pendingToolsList.add(idKey(message.id));
       }
+      if (method === 'initialize') {
+        const clientInfo = (message.params as { clientInfo?: { name?: unknown; version?: unknown } } | undefined)
+          ?.clientInfo;
+        if (clientInfo != null) {
+          notify(() =>
+            observer.onClient?.({
+              name: typeof clientInfo.name === 'string' ? clientInfo.name : undefined,
+              version: typeof clientInfo.version === 'string' ? clientInfo.version : undefined,
+            })
+          );
+        }
+        pendingInitialize.add(idKey(message.id));
+      }
       toRemote(message);
       return;
     }
 
     if (isJSONRPCNotification(message) && RELAYED_NOTIFICATION_METHODS.has(method as string)) {
+      // A cancelled call never gets a response, so nothing would ever clear its
+      // timing entry. Drop it here rather than let the map grow for the life of
+      // the session.
+      if (method === 'notifications/cancelled') {
+        const requestId = (message.params as { requestId?: unknown } | undefined)?.requestId;
+        if (typeof requestId === 'string' || typeof requestId === 'number') {
+          pendingCalls.delete(idKey(requestId));
+        }
+      }
       toRemote(message);
       return;
     }
@@ -178,6 +261,39 @@ export function createBridge(local: BridgeTransport, remote: BridgeTransport, lo
     if (isJSONRPCErrorResponse(message) && message.id != null) {
       pendingToolsList.delete(idKey(message.id));
     }
+
+    const id = (message as { id?: RequestId }).id;
+    if (id != null && pendingInitialize.delete(idKey(id)) && isJSONRPCResultResponse(message)) {
+      const protocolVersion = (message.result as { protocolVersion?: unknown }).protocolVersion;
+      if (typeof protocolVersion === 'string') {
+        notify(() => observer.onClient?.({ protocolVersion }));
+      }
+    }
+
+    // Take the pending call before forwarding, so the client isn't kept waiting
+    // on bookkeeping — but report it after, for the same reason.
+    const outcome = id != null ? takeToolCallOutcome(id, message) : undefined;
     toLocal(message);
+    if (outcome != null) {
+      notify(() => observer.onToolCall?.(outcome));
+    }
   };
+
+  /**
+   * Match a response to the `tools/call` that produced it, or return undefined
+   * if it isn't one. Both failure shapes count as failures: a JSON-RPC error,
+   * and a well-formed response carrying `result.isError`.
+   */
+  function takeToolCallOutcome(id: RequestId, message: JSONRPCMessage): ToolCallOutcome | undefined {
+    const pending = pendingCalls.get(idKey(id));
+    if (pending == null) return undefined;
+    pendingCalls.delete(idKey(id));
+
+    const durationMs = performance.now() - pending.startedAt;
+    if (isJSONRPCErrorResponse(message)) {
+      return { toolName: pending.toolName, durationMs, isError: true, errorMessage: message.error.message };
+    }
+    const result = (message as JSONRPCResultResponse).result as { isError?: unknown } | undefined;
+    return { toolName: pending.toolName, durationMs, isError: result?.isError === true };
+  }
 }
