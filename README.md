@@ -121,9 +121,42 @@ Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect and
 <details>
 <summary><b>Antigravity CLI (Google)</b></summary>
 
-The Antigravity CLI (`agy`) has no `mcp add` command, but it reads the same config file as the Antigravity app — so you only set this up once and both pick it up.
+The Antigravity CLI (`agy`) is a separate download from the Antigravity app — you don't need the app to use it. If you haven't got it, install it first from [Google's install guide](https://antigravity.google/docs/cli/install).
 
-Follow the **Antigravity App (Google)** steps below, then start a new `agy` session.
+`agy` has no `mcp add` command, so you add Mitti by editing its config file. Open it from a terminal:
+
+**On a Mac** — paste this into Terminal and hit enter:
+
+```
+mkdir -p ~/.gemini/config && touch ~/.gemini/config/mcp_config.json && open -e ~/.gemini/config/mcp_config.json
+```
+
+**On Windows** — paste this into Command Prompt and hit enter:
+
+```
+mkdir "%USERPROFILE%\.gemini\config" 2>nul & notepad "%USERPROFILE%\.gemini\config\mcp_config.json"
+```
+
+If the file is empty, paste in the whole block below. If it already has something in it, add the `mitti` entry inside the existing `mcpServers` section:
+
+```json
+{
+  "mcpServers": {
+    "mitti": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
+      ],
+      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
+    }
+  }
+}
+```
+
+Save the file, then start a new `agy` session.
+
+The CLI and the app read the same file, so if you've already set up one of them, the other picks it up too.
 
 </details>
 
