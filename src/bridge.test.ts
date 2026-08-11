@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { createBridge } from './bridge.js';
-import type { BridgeTransport } from './bridge.js';
+import type { BridgeObserver, BridgeTransport, ObservedClient, ToolCallOutcome } from './bridge.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
 /** A transport double that records what it's sent and lets tests drive `onmessage` directly. */
@@ -26,11 +26,23 @@ function receive(transport: BridgeTransport, message: unknown): void {
 const READ_ONLY_TOOL = { name: 'sites_get', annotations: { readOnlyHint: true } };
 const WRITE_TOOL = { name: 'sites_create', annotations: { readOnlyHint: false } };
 
-function setup() {
+function setup(observer?: BridgeObserver) {
   const local = fakeTransport();
   const remote = fakeTransport();
-  createBridge(local, remote, () => {});
-  return { local, remote };
+  const logged: string[] = [];
+  createBridge(local, remote, (message) => logged.push(message), observer);
+  return { local, remote, logged };
+}
+
+/** A bridge wired to an observer that records everything it's told. */
+function setupObserved() {
+  const calls: ToolCallOutcome[] = [];
+  const clients: ObservedClient[] = [];
+  const { local, remote, logged } = setup({
+    onToolCall: (outcome) => calls.push(outcome),
+    onClient: (client) => clients.push(client),
+  });
+  return { local, remote, logged, calls, clients };
 }
 
 /** Drive a tools/list round-trip so `sites_get` is known read-only and `sites_create` is not. */
@@ -143,4 +155,112 @@ test('a recognised read method is forwarded', () => {
   const { local, remote } = setup();
   receive(local, { jsonrpc: '2.0', id: 20, method: 'resources/read', params: { uri: 'mitti://x' } });
   assert.ok(remote.sent.some((m) => (m as { id?: unknown }).id === 20));
+});
+
+test('a completed tools/call is reported once, with its tool name and duration', () => {
+  const { local, remote, calls } = setupObserved();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  assert.equal(calls.length, 0, 'nothing is reported until the response arrives');
+
+  receive(remote, { jsonrpc: '2.0', id: 30, result: { content: [{ type: 'text', text: 'ok' }] } });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].toolName, 'sites_get');
+  assert.equal(calls[0].isError, false);
+  assert.ok(calls[0].durationMs >= 0);
+});
+
+test('a JSON-RPC error response is reported as a failure, carrying the protocol message', () => {
+  const { local, remote, calls } = setupObserved();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 31, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  receive(remote, { jsonrpc: '2.0', id: 31, error: { code: -32603, message: 'upstream unavailable' } });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].isError, true);
+  assert.equal(calls[0].errorMessage, 'upstream unavailable');
+});
+
+// The tool's own error text is customer data — "no site named 'Acme HQ'" names a
+// real site. The failure is worth reporting; the words are not ours to send.
+test('an in-band tool error is reported as a failure with no message text', () => {
+  const { local, remote, calls } = setupObserved();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 32, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  receive(remote, {
+    jsonrpc: '2.0',
+    id: 32,
+    result: { isError: true, content: [{ type: 'text', text: "no site named 'Acme HQ'" }] },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].isError, true);
+  assert.equal(calls[0].errorMessage, undefined);
+});
+
+test('a blocked tools/call is never reported — it never ran', () => {
+  const { local, remote, calls } = setupObserved();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 33, method: 'tools/call', params: { name: 'sites_create', arguments: {} } });
+
+  assert.equal(calls.length, 0);
+});
+
+test('the client identifies itself from the initialize handshake', () => {
+  const { local, remote, clients } = setupObserved();
+
+  receive(local, {
+    jsonrpc: '2.0',
+    id: 'init-1',
+    method: 'initialize',
+    params: { clientInfo: { name: 'claude-code', version: '2.1.0' }, protocolVersion: '2025-06-18' },
+  });
+  receive(remote, { jsonrpc: '2.0', id: 'init-1', result: { protocolVersion: '2025-06-18' } });
+
+  assert.deepEqual(clients, [{ name: 'claude-code', version: '2.1.0' }, { protocolVersion: '2025-06-18' }]);
+});
+
+test('a cancelled call stops being tracked, so its timing entry cannot linger', () => {
+  const { local, remote, calls } = setupObserved();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 34, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  receive(local, { jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 34 } });
+  // A late response to a cancelled call is forwarded, but no longer reported.
+  receive(remote, { jsonrpc: '2.0', id: 34, result: {} });
+
+  assert.equal(calls.length, 0);
+  assert.ok(local.sent.some((m) => (m as { id?: unknown }).id === 34));
+});
+
+// Analytics is a bystander: a throwing observer must not cost the client its
+// response, or the relay its next message.
+test('an observer that throws is logged and the response still reaches the client', () => {
+  const { local, remote, logged } = setup({
+    onToolCall() {
+      throw new Error('observer exploded');
+    },
+  });
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 35, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  receive(remote, { jsonrpc: '2.0', id: 35, result: { content: [] } });
+
+  assert.ok(local.sent.some((m) => (m as { id?: unknown }).id === 35), 'the client still got its response');
+  assert.ok(logged.some((message) => message.includes('observer exploded')));
+});
+
+test('a bridge with no observer relays exactly as before', () => {
+  const { local, remote } = setup();
+  primeToolsList(local, remote);
+
+  receive(local, { jsonrpc: '2.0', id: 36, method: 'tools/call', params: { name: 'sites_get', arguments: {} } });
+  receive(remote, { jsonrpc: '2.0', id: 36, result: { content: [] } });
+
+  assert.ok(local.sent.some((m) => (m as { id?: unknown }).id === 36));
 });

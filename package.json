@@ -14,7 +14,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs",
+    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs --define:__MITTI_VERSION__=\\\"$npm_package_version\\\"",
+    "bundle:release": "npm run bundle -- --define:__MITTI_ANALYTICS_KEY__=\\\"$PUBLIC_AMPLITUDE_API_KEY\\\"",
     "build": "tsc",
     "lint": "oxlint .",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
@@ -22,6 +23,7 @@
     "prepare": "npm run bundle"
   },
   "devDependencies": {
+    "@amplitude/mcp-analytics": "0.4.1",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "26.1.2",
     "esbuild": "0.28.1",

@@ -92,8 +92,29 @@ jobs:
         timeout-minutes: 5
         run: npm test
 
+      # The Amplitude key is injected here rather than committed. It ends up
+      # readable inside the published bundle either way, which is why it must be
+      # the project's write-only ingestion key and never its secret key.
+      #
+      # A release built without the key reports nothing, and nothing about it
+      # looks wrong until someone asks why there's no usage data — months later,
+      # with no way to recover what wasn't recorded. So a missing secret fails the
+      # release rather than shipping a blind one.
       - name: Bundle
-        run: npm run bundle
+        env:
+          PUBLIC_AMPLITUDE_API_KEY: ${{ secrets.PUBLIC_AMPLITUDE_API_KEY }}
+        run: |
+          if [ -z "$PUBLIC_AMPLITUDE_API_KEY" ]; then
+            echo "::error::PUBLIC_AMPLITUDE_API_KEY is not set — add it under Settings → Secrets and variables → Actions. A release built without it reports no usage at all."
+            exit 1
+          fi
+          npm run bundle:release
+          # Verify rather than assume: a define that silently failed to apply
+          # would ship a release that reports nothing, and look fine doing it.
+          if ! grep -qF "$PUBLIC_AMPLITUDE_API_KEY" dist/mitti-mcp.mjs; then
+            echo "::error::the analytics key was not baked into the bundle"
+            exit 1
+          fi
 
       # The bundle must run with no node_modules at all — that's the whole
       # point of shipping it. Verify rather than assume: a bad token exits

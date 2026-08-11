@@ -79,3 +79,16 @@ The release tarball is a prebuilt, dependency-free bundle: installing it pulls
 in no transitive packages and needs no build toolchain.
 
 Logs go to **stderr** (stdout is reserved for the MCP transport).
+
+## Analytics
+
+We use [Amplitude](https://amplitude.com) to understand how this proxy is used so
+we can improve it. Each tool call records the name of the tool, how long it took,
+whether it failed, which MCP client made it, and the Mitti user and organisation
+it belongs to.
+
+None of your content is collected: no inspection, action, site or document data,
+no tool arguments, no tool results, and never your API token. When a tool fails,
+we record that it failed — not what it said.
+
+These events are sent to Amplitude and stored in the **United States**.
