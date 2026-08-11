@@ -1,52 +1,47 @@
 /**
  * Usage analytics: which tools get called, by whom, from which MCP client, how
- * long they take, and whether they fail — reported to Amplitude.
+ * long they take, and whether they fail — posted to Amplitude as they happen.
  *
- * **What is reported is metadata, and only metadata.** Never the API token,
- * never tool arguments, never tool results. A tool's inputs and outputs are
- * customer data; the fact that `sites_search` was called and took 120ms is not.
- * `bridge.ts` is what enforces that split at the source — it hands over a
- * fixed-shape outcome, not the message.
+ * **Metadata only.** Never the API token, never tool arguments, never tool
+ * results. A tool's inputs and outputs are customer data; the fact that
+ * `sites_search` was called and took 120ms is not. `bridge.ts` enforces that at
+ * the source — it hands over a fixed-shape outcome, not the message.
  *
- * The SDK's convenience API (`instrumentServer` / `instrumentTool`) binds to an
- * `McpServer`/`Server` instance so it can auto-detect the transport and wrap
- * tool handlers. This proxy has neither — `bridge.ts` hand-relays raw JSON-RPC
- * between two bare transports — so there is nothing for those to bind to.
- * Instead this uses the SDK's low-level tracking primitives
- * (`createServerContext` / `createToolContext` + `trackToolEvent`), which its
- * own docs point at for emitting events outside an instrumented handler.
+ * The event and property names are Amplitude's reserved MCP ones, so these land
+ * in its MCP views alongside servers instrumented with its SDK. Writing them
+ * literally is the whole reason this file needs no dependency: that vocabulary is
+ * a list of strings, and `@amplitude/mcp-analytics` earns nothing else here. Its
+ * context plumbing, handler wrapping and identity fallbacks are all for servers
+ * built on `McpServer`; this proxy hand-relays raw JSON-RPC between two bare
+ * transports. Using 5% of it cost three separate bugs — a CJS transport that
+ * can't be bundled, an `init()` it doesn't await, and a logger that writes to
+ * stdout, which here *is* the MCP transport — plus placeholder properties
+ * ("no-session", "anonymous", "unknown") that say nothing.
  *
- * The event and property names below are the SDK's reserved ones, so these
- * events land in Amplitude's MCP views alongside servers instrumented the
- * ordinary way.
+ * Each event is sent when it happens. No queue, no batching: a session produces a
+ * handful of events, the sends are off the critical path, and an event held in
+ * memory is an event that can be lost — v0.3.0's events were correct and simply
+ * never left the process. The one piece of machinery here is the in-flight set:
+ * `track` is called synchronously from the relay so it cannot await delivery, and
+ * shutdown calls `process.exit()`, which would cut off requests still in the air.
  *
- * Analytics is a bystander, not a participant: every entry point here swallows
- * its own failures. A bad key, a dead network, or an SDK bug must never break
- * the relay or lose a tool call.
+ * Analytics is a bystander. Every entry point swallows its own failures: a bad
+ * key, a dead network or a bug here must never break the relay or lose a call.
  */
-import {
-  createMcpAnalytics,
-  createServerContext,
-  createToolContext,
-  type AmplitudeMCPAnalytics,
-  type McpServerContext,
-} from '@amplitude/mcp-analytics';
-import { createAmplitudeHttpClient } from './amplitude.js';
 import type { ObservedClient, ToolCallOutcome } from './bridge.js';
 
-/** Reported as `[MCP] Server Name`; also the SDK's server identity. */
-const SERVER_NAME = 'mitti-mcp';
+const INGEST_URL = 'https://api2.amplitude.com/2/httpapi';
 
+/** Matches token-guard.ts: a stalled request must not hang the process. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
+const SERVER_NAME = 'mitti-mcp';
 const TOOL_CALL_RESPONSE_EVENT = '[MCP] Tool Call Response';
-const IS_ERROR_PROPERTY = '[MCP] Is Error';
-const RESPONSE_DURATION_PROPERTY = '[MCP] Response Duration';
-const ERROR_MESSAGE_PROPERTY = '[MCP] Error Message';
 
 /**
- * Amplitude group type that usage is rolled up by, so "which customers use
- * this" is answerable at all. This string has to match the group type created
- * in the Amplitude project — get it wrong and the events still arrive, they
- * just don't group.
+ * Amplitude group type that usage is rolled up by, so "which customers use this"
+ * is answerable at all. Must match the group type created in the Amplitude
+ * project — get it wrong and events still arrive, they just don't group.
  */
 const ORG_GROUP_TYPE = 'org id';
 
@@ -60,7 +55,7 @@ export interface ToolUsageTracker {
   /** Record what's on the other end of the pipe, learned from `initialize`. */
   observeClient(client: ObservedClient): void;
   track(outcome: ToolCallOutcome): void;
-  /** Flush pending events. The process is short-lived, so this is not optional. */
+  /** Wait for sends still in the air. The process exits right after. */
   shutdown(): Promise<void>;
 }
 
@@ -71,92 +66,88 @@ export const NOOP_TRACKER: ToolUsageTracker = {
   async shutdown() {},
 };
 
-interface TrackerOptions {
+export interface TrackerOptions {
+  apiKey: string | undefined;
   identity: AnalyticsIdentity;
   serverVersion: string;
   log: (message: string) => void;
+  /** Overridden in tests. */
+  fetchImpl?: typeof fetch;
+  /** Overridden in tests. */
+  url?: string;
 }
 
 /**
- * Build a tracker over an already-constructed analytics client — the real one,
- * or `MockAmplitudeMCPAnalytics` in tests.
+ * The real tracker, or a no-op when there's no key to report to. No key means no
+ * request is ever made to anything but the Mitti API.
  */
-export function createToolCallTracker(analytics: AmplitudeMCPAnalytics, opts: TrackerOptions): ToolUsageTracker {
-  const { identity, serverVersion, log } = opts;
-  // Learned mid-session: `clientInfo` arrives on the initialize request and the
-  // protocol version on its response, so this fills in over two observations
-  // and the context is rebuilt per event rather than frozen at startup.
+export function createToolUsageTracker(opts: TrackerOptions): ToolUsageTracker {
+  const { apiKey, identity, serverVersion, log } = opts;
+  if (!apiKey) return NOOP_TRACKER;
+
+  const send = opts.fetchImpl ?? fetch;
+  const url = opts.url ?? INGEST_URL;
+  const inFlight = new Set<Promise<void>>();
   let client: ObservedClient = {};
 
-  function serverContext(): McpServerContext {
-    return createServerContext({
-      server: { name: SERVER_NAME, version: serverVersion },
-      transport: 'stdio',
-      identity: { userId: identity.userId, resolvedFrom: 'explicit' },
-      ...(identity.orgId ? { tenant: { groupType: ORG_GROUP_TYPE, groupValue: identity.orgId } } : {}),
-      ...(client.name != null || client.version != null
-        ? { client: { name: client.name, version: client.version } }
-        : {}),
-      ...(client.protocolVersion != null ? { protocolVersion: client.protocolVersion } : {}),
-    });
+  async function post(event: Record<string, unknown>): Promise<void> {
+    try {
+      const response = await send(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, events: [event] }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        // Dropped, not retried: a 400 won't get better, and a customer's exit
+        // shouldn't wait on our telemetry.
+        log(`analytics: event rejected with ${response.status}`);
+      }
+    } catch (error: unknown) {
+      log(`analytics: event not delivered — ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   return {
     observeClient(next: ObservedClient) {
-      client = { ...client, ...next };
+      client = next;
     },
 
     track({ toolName, durationMs, isError, errorMessage }: ToolCallOutcome) {
       try {
-        analytics.trackToolEvent(createToolContext(serverContext(), { name: toolName }), TOOL_CALL_RESPONSE_EVENT, {
-          [IS_ERROR_PROPERTY]: isError,
-          // Sub-millisecond precision is noise here, and a fractional duration
-          // makes for uglier charts than it's worth.
-          [RESPONSE_DURATION_PROPERTY]: Math.round(durationMs),
-          ...(errorMessage != null ? { [ERROR_MESSAGE_PROPERTY]: errorMessage } : {}),
-        });
+        const request = post({
+          event_type: TOOL_CALL_RESPONSE_EVENT,
+          user_id: identity.userId,
+          ...(identity.orgId ? { groups: { [ORG_GROUP_TYPE]: identity.orgId } } : {}),
+          time: Date.now(),
+          // Dedup key, in case a request is ever delivered twice.
+          insert_id: crypto.randomUUID(),
+          event_properties: {
+            '[MCP] Server Name': SERVER_NAME,
+            '[MCP] Server Version': serverVersion,
+            '[MCP] Transport': 'stdio',
+            '[MCP] Tool Name': toolName,
+            '[MCP] Is Error': isError,
+            // Sub-millisecond precision is noise, and fractional durations make
+            // for uglier charts than they're worth.
+            '[MCP] Response Duration': Math.round(durationMs),
+            ...(client.name != null ? { '[MCP] Client Name': client.name } : {}),
+            ...(client.version != null ? { '[MCP] Client Version': client.version } : {}),
+            ...(errorMessage != null ? { '[MCP] Error Message': errorMessage } : {}),
+          },
+        }).finally(() => inFlight.delete(request));
+        inFlight.add(request);
       } catch (error: unknown) {
         log(`analytics: dropped an event — ${error instanceof Error ? error.message : String(error)}`);
       }
     },
 
     async shutdown() {
-      try {
-        await Promise.resolve(analytics.flush());
-        // A NodeClient has no shutdown of its own — the flush above is what
-        // actually gets the buffered events out.
-        analytics.shutdown();
-      } catch (error: unknown) {
-        log(`analytics: flush failed — ${error instanceof Error ? error.message : String(error)}`);
+      // Looped rather than a single await: a response arriving as the proxy shuts
+      // down can start one more send while this is waiting.
+      while (inFlight.size > 0) {
+        await Promise.allSettled(inFlight);
       }
     },
   };
-}
-
-/**
- * The real tracker, or a no-op when there's no key to report to. No key means
- * no analytics client is ever constructed and no request is ever made to
- * anything but the Mitti API.
- *
- * The delivery client is ours (see amplitude.ts) rather than the one
- * `createMcpAnalytics` builds from an `apiKey`, which cannot work in a released
- * build of this proxy. Passing our own also keeps Amplitude's logging off
- * **stdout** — that's the MCP transport here, and a single `console.log` from a
- * dependency would corrupt the protocol stream.
- */
-export function createToolUsageTracker(opts: TrackerOptions & { apiKey: string | undefined }): ToolUsageTracker {
-  if (!opts.apiKey) return NOOP_TRACKER;
-
-  try {
-    const analytics = createMcpAnalytics({
-      amplitude: createAmplitudeHttpClient({ apiKey: opts.apiKey, log: opts.log }),
-      serverName: SERVER_NAME,
-      serverVersion: opts.serverVersion,
-    });
-    return createToolCallTracker(analytics, opts);
-  } catch (error: unknown) {
-    // A client the SDK won't accept disables analytics; it doesn't stop the proxy.
-    opts.log(`analytics: disabled — ${error instanceof Error ? error.message : String(error)}`);
-    return NOOP_TRACKER;
-  }
 }

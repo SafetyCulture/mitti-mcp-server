@@ -1,6 +1,6 @@
 {
   "name": "mitti-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Mitti MCP proxy — bridges a local stdio MCP client to the Mitti MCP endpoint using an API token.",
   "license": "Apache-2.0",
   "type": "module",
@@ -23,7 +23,6 @@
     "prepare": "npm run bundle"
   },
   "devDependencies": {
-    "@amplitude/mcp-analytics": "0.4.1",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "26.1.2",
     "esbuild": "0.28.1",

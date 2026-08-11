@@ -1,150 +1,261 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { MockAmplitudeMCPAnalytics } from '@amplitude/mcp-analytics/testing';
-import { createToolCallTracker, createToolUsageTracker, NOOP_TRACKER } from './analytics.js';
+import { createToolUsageTracker, NOOP_TRACKER } from './analytics.js';
 
-const IDENTITY = { userId: 'user_d8d0b3ecb34a482ead73e963b3a4e7e2', orgId: 'org_123' };
+const URL_UNDER_TEST = 'https://amplitude.example.test/2/httpapi';
+const IDENTITY = { userId: 'user_d8d0b3ecb34a482ead73e963b3a4e7e2', orgId: 'role_ae9b2d51' };
+const OUTCOME = { toolName: 'sites_get', durationMs: 42.4, isError: false };
 
-function setup(identity: { userId: string; orgId?: string } = IDENTITY) {
-  const mock = new MockAmplitudeMCPAnalytics({ serverName: 'mitti-mcp', serverVersion: '0.2.0' });
-  const logged: string[] = [];
-  const tracker = createToolCallTracker(mock, {
-    identity,
-    serverVersion: '0.2.0',
-    log: (message) => logged.push(message),
-  });
-  return { mock, tracker, logged };
+interface SentEvent {
+  event_type: string;
+  user_id: string;
+  groups?: Record<string, string>;
+  time: number;
+  insert_id: string;
+  event_properties: Record<string, unknown>;
 }
 
-test('a tracked call becomes one [MCP] Tool Call Response event attributed to the user and org', () => {
-  const { mock, tracker } = setup();
+/** A fetch double that records the events it's asked to deliver. */
+function stubFetch(respond: () => Response = () => new Response('{}', { status: 200 })) {
+  const sent: Array<{ api_key: string; events: SentEvent[] }> = [];
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)));
+    return respond();
+  }) as unknown as typeof fetch;
+  return { sent, fetchImpl };
+}
 
-  tracker.track({ toolName: 'sites_get', durationMs: 42.4, isError: false });
+function setup(opts: { identity?: typeof IDENTITY | { userId: string }; respond?: () => Response } = {}) {
+  const { sent, fetchImpl } = stubFetch(opts.respond);
+  const logged: string[] = [];
+  const tracker = createToolUsageTracker({
+    apiKey: 'amp_key',
+    identity: opts.identity ?? IDENTITY,
+    serverVersion: '0.3.2',
+    log: (message) => logged.push(message),
+    fetchImpl,
+    url: URL_UNDER_TEST,
+  });
+  return { tracker, sent, logged };
+}
 
-  const events = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(events.length, 1);
-  const [event] = events;
-  assert.equal(event.user_id, IDENTITY.userId);
-  assert.deepEqual(event.groups, { 'org id': IDENTITY.orgId });
-  assert.equal(event.event_properties?.['[MCP] Tool Name'], 'sites_get');
-  assert.equal(event.event_properties?.['[MCP] Is Error'], false);
-  assert.equal(event.event_properties?.['[MCP] Response Duration'], 42, 'rounded to whole milliseconds');
-  assert.equal(event.event_properties?.['[MCP] Server Version'], '0.2.0');
+// No queue, so an event that happened is an event already on its way. A released
+// build once held them until exit, and a session that lives as long as the editor
+// never reached exit.
+test('a tracked call is posted as it happens, with no shutdown', async () => {
+  const { tracker, sent } = setup();
+
+  tracker.track(OUTCOME);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].api_key, 'amp_key');
+  assert.equal(sent[0].events.length, 1);
 });
 
-test('the MCP client is reported once the handshake reveals it', () => {
-  const { mock, tracker } = setup();
+test('the event carries the identity, tool, outcome and versions', async () => {
+  const { tracker, sent } = setup();
 
   tracker.observeClient({ name: 'claude-code', version: '2.1.0' });
-  tracker.observeClient({ protocolVersion: '2025-06-18' });
-  tracker.track({ toolName: 'sites_get', durationMs: 1, isError: false });
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
 
-  const [event] = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(event.event_properties?.['[MCP] Client Name'], 'claude-code');
-  assert.equal(event.event_properties?.['[MCP] Client Version'], '2.1.0');
-  assert.equal(event.event_properties?.['[MCP] Protocol Version'], '2025-06-18');
+  const [event] = sent[0].events;
+  assert.equal(event.event_type, '[MCP] Tool Call Response');
+  assert.equal(event.user_id, IDENTITY.userId);
+  assert.deepEqual(event.groups, { 'org id': IDENTITY.orgId });
+  assert.equal(typeof event.time, 'number');
+  assert.match(event.insert_id, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(event.event_properties, {
+    '[MCP] Server Name': 'mitti-mcp',
+    '[MCP] Server Version': '0.3.2',
+    '[MCP] Transport': 'stdio',
+    '[MCP] Tool Name': 'sites_get',
+    '[MCP] Is Error': false,
+    '[MCP] Response Duration': 42, // rounded
+    '[MCP] Client Name': 'claude-code',
+    '[MCP] Client Version': '2.1.0',
+  });
 });
 
-// Each observation carries only the fields that arrived with it, so a merge is
-// the difference between knowing the client and forgetting it a moment later.
-test('observing the protocol version does not erase the client already learned', () => {
-  const { mock, tracker } = setup();
+// The property list above is the whole payload. This pins the promise the README
+// makes: nothing about what a tool was asked or what it answered.
+test('no tool arguments or results can reach the wire', async () => {
+  const { tracker, sent } = setup();
 
-  tracker.observeClient({ name: 'cursor', version: '1.0.0' });
-  tracker.observeClient({ protocolVersion: '2025-06-18' });
-  tracker.track({ toolName: 'sites_get', durationMs: 1, isError: false });
+  tracker.track({ ...OUTCOME, isError: true, errorMessage: 'request timed out' });
+  await tracker.shutdown();
 
-  const [event] = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(event.event_properties?.['[MCP] Client Name'], 'cursor');
+  const body = JSON.stringify(sent[0]);
+  assert.ok(!body.includes('arguments'));
+  assert.ok(!body.includes('content'));
+  assert.ok(body.includes('amp_key'), 'the api key is the one credential that belongs in the payload');
 });
 
-test('a failed call is recorded as an error, with the protocol-level message', () => {
-  const { mock, tracker } = setup();
+test('an unidentified client is simply absent, and the event still goes', async () => {
+  const { tracker, sent } = setup();
 
-  tracker.track({ toolName: 'sites_search', durationMs: 7, isError: true, errorMessage: 'request timed out' });
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
 
-  const [event] = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(event.event_properties?.['[MCP] Is Error'], true);
-  assert.equal(event.event_properties?.['[MCP] Error Message'], 'request timed out');
-});
-
-test('an error with no message reports the failure without inventing one', () => {
-  const { mock, tracker } = setup();
-
-  tracker.track({ toolName: 'sites_search', durationMs: 7, isError: true });
-
-  const [event] = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(event.event_properties?.['[MCP] Is Error'], true);
-  assert.equal(event.event_properties?.['[MCP] Error Message'], undefined);
+  const { event_properties: props } = sent[0].events[0];
+  assert.equal('[MCP] Client Name' in props, false);
+  assert.equal('[MCP] Client Version' in props, false);
+  assert.equal(props['[MCP] Tool Name'], 'sites_get');
 });
 
 // Group types are a paid Amplitude feature and the org isn't always resolvable.
-// Events still have to land, just without the rollup.
-test('a missing org still reports the call, just ungrouped', () => {
-  const { mock, tracker } = setup({ userId: IDENTITY.userId });
+test('a missing org still reports the call, just ungrouped', async () => {
+  const { tracker, sent } = setup({ identity: { userId: IDENTITY.userId } });
 
-  tracker.track({ toolName: 'sites_get', durationMs: 1, isError: false });
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
 
-  const events = mock.getEvents('[MCP] Tool Call Response');
-  assert.equal(events.length, 1);
-  assert.equal(events[0].user_id, IDENTITY.userId);
+  assert.equal(sent[0].events[0].groups, undefined);
+  assert.equal(sent[0].events[0].user_id, IDENTITY.userId);
 });
 
-test('no API key means no analytics client, and every call is inert', async () => {
+test('a failure records the protocol-level message', async () => {
+  const { tracker, sent } = setup();
+
+  tracker.track({ toolName: 'sites_search', durationMs: 7, isError: true, errorMessage: 'upstream unavailable' });
+  await tracker.shutdown();
+
+  const { event_properties: props } = sent[0].events[0];
+  assert.equal(props['[MCP] Is Error'], true);
+  assert.equal(props['[MCP] Error Message'], 'upstream unavailable');
+});
+
+test('a failure with no message reports it without inventing one', async () => {
+  const { tracker, sent } = setup();
+
+  tracker.track({ toolName: 'sites_search', durationMs: 7, isError: true });
+  await tracker.shutdown();
+
+  const { event_properties: props } = sent[0].events[0];
+  assert.equal(props['[MCP] Is Error'], true);
+  assert.equal('[MCP] Error Message' in props, false);
+});
+
+test('each call is its own request', async () => {
+  const { tracker, sent } = setup();
+
+  tracker.track(OUTCOME);
+  tracker.track(OUTCOME);
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+
+  assert.equal(sent.length, 3);
+});
+
+// shutdown() runs immediately before process.exit(), so anything it fails to wait
+// for is an event killed in transit.
+test('shutdown waits for a send already in flight', async () => {
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tracker = createToolUsageTracker({
+    apiKey: 'amp_key',
+    identity: IDENTITY,
+    serverVersion: '0.3.2',
+    log: () => {},
+    fetchImpl: (async () => {
+      await gate;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch,
+    url: URL_UNDER_TEST,
+  });
+
+  tracker.track(OUTCOME);
+  let done = false;
+  const shutting = tracker.shutdown().then(() => {
+    done = true;
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(done, false, 'shutdown should still be waiting');
+
+  release?.();
+  await shutting;
+  assert.equal(done, true);
+});
+
+// A tool response can land in the same tick as the shutdown that drains.
+test('shutdown also waits for a send that starts while it is waiting', async () => {
+  let started = 0;
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tracker = createToolUsageTracker({
+    apiKey: 'amp_key',
+    identity: IDENTITY,
+    serverVersion: '0.3.2',
+    log: () => {},
+    fetchImpl: (async () => {
+      started += 1;
+      if (started === 1) await gate;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch,
+    url: URL_UNDER_TEST,
+  });
+
+  tracker.track(OUTCOME);
+  const shutting = tracker.shutdown();
+  tracker.track(OUTCOME);
+  release?.();
+  await shutting;
+
+  assert.equal(started, 2, 'both sends completed before shutdown resolved');
+});
+
+test('a rejected event is logged and dropped, not retried', async () => {
+  const { tracker, sent, logged } = setup({ respond: () => new Response('nope', { status: 400 }) });
+
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+
+  assert.equal(sent.length, 1, 'sent once');
+  assert.match(logged[0], /rejected with 400/);
+});
+
+test('a network failure is logged, and shutdown still resolves', async () => {
+  const logged: string[] = [];
+  const tracker = createToolUsageTracker({
+    apiKey: 'amp_key',
+    identity: IDENTITY,
+    serverVersion: '0.3.2',
+    log: (message) => logged.push(message),
+    fetchImpl: (async () => {
+      throw new Error('connection refused');
+    }) as unknown as typeof fetch,
+    url: URL_UNDER_TEST,
+  });
+
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+
+  assert.match(logged[0], /not delivered — connection refused/);
+});
+
+test('no key means no analytics client, and every call is inert', async () => {
+  let called = false;
   const tracker = createToolUsageTracker({
     apiKey: undefined,
     identity: IDENTITY,
-    serverVersion: '0.2.0',
+    serverVersion: '0.3.2',
     log: () => {},
+    fetchImpl: (async () => {
+      called = true;
+      return new Response('{}');
+    }) as unknown as typeof fetch,
   });
 
   assert.equal(tracker, NOOP_TRACKER);
-  // Must not throw, hit the network, or need a key.
   tracker.observeClient({ name: 'claude-code' });
-  tracker.track({ toolName: 'sites_get', durationMs: 1, isError: false });
+  tracker.track(OUTCOME);
   await tracker.shutdown();
-});
-
-// The whole point of the try/catch in track(): a broken analytics client is a
-// silent non-event for the proxy, never an exception thrown back into the relay.
-test('an analytics client that throws is logged, not propagated', () => {
-  const logged: string[] = [];
-  const exploding = {
-    trackToolEvent() {
-      throw new Error('amplitude exploded');
-    },
-    flush() {},
-    shutdown() {},
-  } as unknown as MockAmplitudeMCPAnalytics;
-
-  const tracker = createToolCallTracker(exploding, {
-    identity: IDENTITY,
-    serverVersion: '0.2.0',
-    log: (message) => logged.push(message),
-  });
-
-  tracker.track({ toolName: 'sites_get', durationMs: 1, isError: false });
-  assert.equal(logged.length, 1);
-  assert.match(logged[0], /amplitude exploded/);
-});
-
-test('a failing flush on shutdown is logged, not thrown', async () => {
-  const logged: string[] = [];
-  const exploding = {
-    trackToolEvent() {},
-    flush() {
-      throw new Error('flush exploded');
-    },
-    shutdown() {},
-  } as unknown as MockAmplitudeMCPAnalytics;
-
-  const tracker = createToolCallTracker(exploding, {
-    identity: IDENTITY,
-    serverVersion: '0.2.0',
-    log: (message) => logged.push(message),
-  });
-
-  await tracker.shutdown();
-  assert.match(logged[0], /flush exploded/);
+  assert.equal(called, false, 'nothing should reach the network');
 });
