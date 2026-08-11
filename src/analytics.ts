@@ -89,6 +89,12 @@ export function createToolUsageTracker(opts: TrackerOptions): ToolUsageTracker {
   const url = opts.url ?? INGEST_URL;
   const inFlight = new Set<Promise<void>>();
   let client: ObservedClient = {};
+  /**
+   * Whether anything has actually been accepted yet. Success used to be silent,
+   * which makes "reporting fine" and "never even tried" look identical in a log —
+   * and that ambiguity cost hours of chasing a release that was working.
+   */
+  let confirmed = false;
 
   async function post(event: Record<string, unknown>): Promise<void> {
     try {
@@ -102,6 +108,10 @@ export function createToolUsageTracker(opts: TrackerOptions): ToolUsageTracker {
         // Dropped, not retried: a 400 won't get better, and a customer's exit
         // shouldn't wait on our telemetry.
         log(`analytics: event rejected with ${response.status}`);
+      } else if (!confirmed) {
+        // Once per session, so a log answers "is this reporting?" outright.
+        confirmed = true;
+        log('analytics: delivery confirmed');
       }
     } catch (error: unknown) {
       log(`analytics: event not delivered — ${error instanceof Error ? error.message : String(error)}`);

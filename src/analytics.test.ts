@@ -138,6 +138,30 @@ test('a failure with no message reports it without inventing one', async () => {
   assert.equal('[MCP] Error Message' in props, false);
 });
 
+// Silence used to mean either "delivered" or "never attempted", which is not a
+// distinction a log should leave to guesswork.
+test('the first accepted event is confirmed in the log, and only once', async () => {
+  const { tracker, logged } = setup();
+
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+  assert.deepEqual(logged, ['analytics: delivery confirmed']);
+
+  tracker.track(OUTCOME);
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+  assert.equal(logged.length, 1, 'not repeated for every event');
+});
+
+test('a rejected event is not reported as confirmed', async () => {
+  const { tracker, logged } = setup({ respond: () => new Response('nope', { status: 400 }) });
+
+  tracker.track(OUTCOME);
+  await tracker.shutdown();
+
+  assert.equal(logged.some((m) => m.includes('confirmed')), false);
+});
+
 test('each call is its own request', async () => {
   const { tracker, sent } = setup();
 
