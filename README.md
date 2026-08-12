@@ -252,10 +252,3 @@ Logs go to stderr; stdout is reserved for the MCP transport.
 Installs pull a prebuilt, dependency-free bundle from the GitHub release — no transitive packages, no build toolchain. `latest/download` always resolves to the newest release; to pin a version, use a tag instead, for example `.../releases/download/v0.3.2/mitti-mcp-0.3.2.tgz`.
 
 Licensed under Apache-2.0.
-
-<details>
-<summary>Upgrading from an earlier build</summary>
-
-The environment variables were previously `SC_API_TOKEN` and `SC_API_URL`. The old names are no longer read — rename them to `MITTI_API_TOKEN` and `MITTI_API_URL`.
-
-</details>
