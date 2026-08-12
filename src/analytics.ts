@@ -104,6 +104,12 @@ export function createToolUsageTracker(opts: TrackerOptions): ToolUsageTracker {
         body: JSON.stringify({ api_key: apiKey, events: [event] }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
+      // Neither branch below reads the body, and shutdown() calls
+      // process.exit() moments after the last send settles — on Windows
+      // that races libuv's async-handle close for a still-open body against
+      // the exit and crashes with an assertion in src\win\async.c (see
+      // nodejs/node#56645). Draining it first avoids the race.
+      await response.body?.cancel().catch(() => {});
       if (!response.ok) {
         // Dropped, not retried: a 400 won't get better, and a customer's exit
         // shouldn't wait on our telemetry.

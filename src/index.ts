@@ -42,8 +42,25 @@ function log(message: string): void {
   process.stderr.write(`mitti-mcp: ${message}\n`);
 }
 
-function fatal(message: string): never {
+/**
+ * How long every exit below waits before actually calling `process.exit()`.
+ *
+ * On Windows, exiting immediately after this process has made any `fetch()`
+ * call can abort with "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"
+ * — a libuv/undici race where the connection's handle is still being closed
+ * when the process tears down. It's a real, currently-unfixed Node bug
+ * (nodejs/node#56645), not something reading the response differently can
+ * avoid: reports converge on "delay the exit" as the only workaround that
+ * actually holds up. Every path here has made at least one fetch call by the
+ * time it exits — the token check, the tracker, or the remote connection —
+ * so the delay applies uniformly rather than trying to prove any one call
+ * site is safe.
+ */
+const EXIT_DELAY_MS = 100;
+
+async function fatal(message: string): Promise<never> {
   log(message);
+  await new Promise((resolve) => setTimeout(resolve, EXIT_DELAY_MS));
   process.exit(1);
 }
 
@@ -58,8 +75,12 @@ let config;
 try {
   config = resolveConfig(process.env);
 } catch (error: unknown) {
-  fatal(error instanceof Error ? error.message : String(error));
+  await fatal(error instanceof Error ? error.message : String(error));
 }
+// Unreachable: fatal() always exits the process. Unlike a synchronous
+// `never`-returning call, an awaited one doesn't narrow `config` for the
+// type-checker, so this makes that explicit instead of asserting past it.
+if (!config) throw new Error('unreachable');
 const { token, baseUrl, endpoint, analyticsApiKey } = config;
 
 const remote = new StreamableHTTPClientTransport(endpoint, {
@@ -84,6 +105,9 @@ async function shutdown(code = 0): Promise<void> {
   // The tracker buffers, and this process is short-lived: without the flush,
   // the last events of a session are simply lost.
   await Promise.allSettled([local.close(), remote.close(), usageTracker.shutdown()]);
+  // See EXIT_DELAY_MS above — the tracker and the remote connection both make
+  // fetch() calls, so the same Windows exit race applies here.
+  await new Promise((resolve) => setTimeout(resolve, EXIT_DELAY_MS));
   process.exit(code);
 }
 
@@ -131,13 +155,13 @@ try {
       : 'usage analytics: off'
   );
 } catch (error: unknown) {
-  fatal(`refusing to start — ${error instanceof Error ? error.message : String(error)}`);
+  await fatal(`refusing to start — ${error instanceof Error ? error.message : String(error)}`);
 }
 
 try {
   await remote.start();
 } catch (error: unknown) {
-  fatal(`failed to connect to ${endpoint.href} — check MITTI_API_TOKEN and MITTI_API_URL. ${error instanceof Error ? error.message : String(error)}`);
+  await fatal(`failed to connect to ${endpoint.href} — check MITTI_API_TOKEN and MITTI_API_URL. ${error instanceof Error ? error.message : String(error)}`);
 }
 await local.start();
 log(`proxying stdio → ${endpoint.href}`);

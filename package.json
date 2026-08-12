@@ -14,8 +14,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs --define:__MITTI_VERSION__=\\\"$npm_package_version\\\"",
-    "bundle:release": "npm run bundle -- --define:__MITTI_ANALYTICS_KEY__=\\\"$PUBLIC_AMPLITUDE_API_KEY\\\"",
+    "bundle": "node scripts/bundle.mjs",
+    "bundle:release": "node scripts/bundle.mjs",
     "build": "tsc",
     "lint": "oxlint .",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
