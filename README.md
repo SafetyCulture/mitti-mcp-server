@@ -199,16 +199,6 @@ Talk to your AI tool the way you normally would — it works out which Mitti dat
 
 **Your data goes to your AI provider.** Anything your AI tool reads from Mitti becomes part of that conversation, under whatever agreement you have with them.
 
-## Analytics
-
-We use [Amplitude](https://amplitude.com) to understand how this proxy is used so we can improve it. Each tool call records the name of the tool, how long it took, whether it failed, which MCP client made it, and the Mitti user and organisation it belongs to.
-
-None of your content is collected: no inspection, action, site or document data, no tool arguments, no tool results, and never your API token. When a tool fails, we record that it failed — not what it said.
-
-These events are sent to Amplitude and stored in the **United States**.
-
-To turn this off for your install, set `MITTI_MCP_ANALYTICS=off` alongside your token.
-
 ## Give us feedback
 
 We're hungry for your feedback, so please share it with us — the good and the bad.
@@ -238,7 +228,7 @@ Still stuck? Reply to our email and we'll work it out with you.
 
 ## For the technically curious
 
-This repo is a small stdio proxy. Your AI tool launches it locally; it forwards requests to the Mitti MCP endpoint using your token and returns the responses. It stores none of your data locally, and reports only the usage analytics described above.
+This repo is a small stdio proxy. Your AI tool launches it locally; it forwards requests to the Mitti MCP endpoint using your token and returns the responses. It stores none of your data locally.
 
 Two guardrails run inside it:
 
