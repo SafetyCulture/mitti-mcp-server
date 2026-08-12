@@ -13,8 +13,21 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-latest is here because the bundle and its build scripts are
+        # what customers on Windows actually run — a Linux-only pipeline would
+        # never catch a shell-syntax or path assumption that only breaks there.
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    # windows-latest's default `run:` shell is PowerShell; Git Bash ships on
+    # every GitHub-hosted Windows runner, so this keeps every step below
+    # identical across platforms instead of forking the script per shell.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -46,3 +59,25 @@ jobs:
       - name: Test
         timeout-minutes: 5
         run: npm test
+
+      # The unit tests above run against tsc's output, never the bundle
+      # itself — this is the one step that actually executes
+      # dist/mitti-mcp.mjs, the exact artifact customers run, in isolation
+      # from node_modules. On windows-latest this is real proof the bundle
+      # starts under Windows' Node, not an assumption carried over from Linux.
+      - name: Smoke-test the built bundle
+        run: |
+          npm run bundle
+          mkdir -p "$RUNNER_TEMP/isolated"
+          cp dist/mitti-mcp.mjs "$RUNNER_TEMP/isolated/"
+          cd "$RUNNER_TEMP/isolated"
+          output=$(MITTI_API_TOKEN=invalid-token node mitti-mcp.mjs </dev/null 2>&1 || true)
+          echo "$output"
+          case "$output" in
+            *"Cannot find module"*|*"ERR_MODULE_NOT_FOUND"*)
+              echo "::error::bundle is not self-contained"; exit 1 ;;
+          esac
+          case "$output" in
+            mitti-mcp:*) ;;
+            *) echo "::error::bundle did not start"; exit 1 ;;
+          esac

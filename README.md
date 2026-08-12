@@ -64,6 +64,12 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 ```
 claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
+
+**On Windows**, use this instead — outside WSL, Claude Code can't launch `npx` directly:
+```
+claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- cmd /c npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
+```
+
 Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connect, and you're on your way.
 
 </details>
@@ -90,6 +96,25 @@ Then **open a <u>new</u> Claude Code session**, wait for the Mitti MCP to connec
 }
 ```
 
+**On Windows**, use this instead — outside WSL, Claude Desktop can't launch `npx` directly:
+
+```json
+{
+  "mcpServers": {
+    "mitti": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
+      ],
+      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
+    }
+  }
+}
+```
+
 Restart Claude Desktop afterwards.
 
 </details>
@@ -102,6 +127,12 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 ```
 codex mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
+
+**On Windows**, use this instead — outside WSL, Codex can't launch `npx` directly:
+```
+codex mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- cmd /c npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
+```
+
 Then **open a <u>new</u> Codex session**, wait for the Mitti MCP to connect, and you're on your way.
 
 </details>
@@ -127,6 +158,8 @@ Enter the following into the relevant fields:
 | Environment variable passthrough | Leave blank |
 | Working directory | Leave blank |
 
+**On Windows**, outside WSL, ChatGPT Desktop can't launch `npx` directly — set Command to launch to `cmd`, and add `/c` and `npx` as the first two arguments, so Arguments becomes: `/c`, `npx`, `-y`, `https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz`.
+
 Click Save and **fully restart** the ChatGPT app. Start a new **'Work' conversation** (not 'Chat') to use the Mitti MCP.
 
 </details>
@@ -138,6 +171,11 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 
 ```
 gemini mcp add -s user -e MITTI_API_TOKEN=TOKEN_GOES_HERE mitti npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
+```
+
+**On Windows**, use this instead — outside WSL, Gemini CLI can't launch `npx` directly:
+```
+gemini mcp add -s user -e MITTI_API_TOKEN=TOKEN_GOES_HERE mitti cmd /c npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
 
 Then **open a <u>new</u> Gemini session**, wait for the Mitti MCP to connect, and you're on your way.
@@ -161,7 +199,9 @@ mkdir -p ~/.gemini/config && touch ~/.gemini/config/mcp_config.json && open -e ~
 mkdir "%USERPROFILE%\.gemini\config" 2>nul & notepad "%USERPROFILE%\.gemini\config\mcp_config.json"
 ```
 
-The file opens in a plain text editor. If it's empty, paste in the whole block below. If it already has something in it, add the `mitti` entry inside the existing `mcpServers` section:
+The file opens in a plain text editor. If it's empty, paste in the whole block below. If it already has something in it, add the `mitti` entry inside the existing `mcpServers` section.
+
+**On a Mac:**
 
 ```json
 {
@@ -169,6 +209,25 @@ The file opens in a plain text editor. If it's empty, paste in the whole block b
     "mitti": {
       "command": "npx",
       "args": [
+        "-y",
+        "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
+      ],
+      "env": { "MITTI_API_TOKEN": "TOKEN_GOES_HERE" }
+    }
+  }
+}
+```
+
+**On Windows** — outside WSL, Antigravity can't launch `npx` directly, so route it through `cmd` instead:
+
+```json
+{
+  "mcpServers": {
+    "mitti": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
         "-y",
         "https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz"
       ],
@@ -191,6 +250,14 @@ Any MCP client will accept the same three details — check its documentation fo
 | --- | --- |
 | Command | `npx` |
 | Arguments | `-y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz` |
+| Environment | `MITTI_API_TOKEN=TOKEN_GOES_HERE` |
+
+**On Windows**, outside WSL, most clients can't launch `npx` directly — use `cmd` as the Command, and put `/c npx -y <url>` as the Arguments (in that order):
+
+| | |
+| --- | --- |
+| Command | `cmd` |
+| Arguments | `/c npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz` |
 | Environment | `MITTI_API_TOKEN=TOKEN_GOES_HERE` |
 
 </details>
