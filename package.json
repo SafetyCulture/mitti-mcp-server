@@ -1,6 +1,6 @@
 {
   "name": "mitti-mcp",
-  "version": "0.2.0",
+  "version": "0.3.3",
   "description": "Mitti MCP proxy — bridges a local stdio MCP client to the Mitti MCP endpoint using an API token.",
   "license": "Apache-2.0",
   "type": "module",
@@ -14,7 +14,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs",
+    "bundle": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=esm --outfile=dist/mitti-mcp.mjs --define:__MITTI_VERSION__=\\\"$npm_package_version\\\"",
+    "bundle:release": "npm run bundle -- --define:__MITTI_ANALYTICS_KEY__=\\\"$PUBLIC_AMPLITUDE_API_KEY\\\"",
     "build": "tsc",
     "lint": "oxlint .",
     "test": "tsc && node --test \"dist/**/*.test.js\"",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
-    "@types/node": "24.13.3",
+    "@types/node": "26.1.2",
     "esbuild": "0.28.1",
     "oxlint": "1.77.0",
     "typescript": "7.0.2"

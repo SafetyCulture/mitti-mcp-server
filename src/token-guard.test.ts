@@ -18,6 +18,10 @@ function stubApi(opts: {
   sessionClass?: string;
   whoAmIStatus?: number;
   getUserStatus?: number;
+  /** Org id as WhoAmI reports it. */
+  whoAmIOrg?: Record<string, unknown>;
+  /** Org id as the user document reports it. */
+  userDocumentOrg?: Record<string, unknown>;
 }) {
   const paths: string[] = [];
   globalThis.fetch = (async (input: URL | RequestInfo) => {
@@ -27,11 +31,11 @@ function stubApi(opts: {
       new Response(JSON.stringify(body), { status });
 
     if (url.pathname.endsWith('user:WhoAmI')) {
-      return json(opts.whoAmIStatus ?? 200, { user_id: USER_ID });
+      return json(opts.whoAmIStatus ?? 200, { user_id: USER_ID, ...opts.whoAmIOrg });
     }
     if (url.pathname.includes('/accounts/GetUser/')) {
       return json(opts.getUserStatus ?? 200, {
-        user_document: { id: UUID, seat_type: opts.seatType },
+        user_document: { id: UUID, seat_type: opts.seatType, ...opts.userDocumentOrg },
       });
     }
     if (url.pathname.endsWith('/auth/token')) {
@@ -45,7 +49,9 @@ function stubApi(opts: {
 
 test('allows a real person and returns their seat type', async () => {
   stubApi({ seatType: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM' });
-  assert.equal(await assertNotServiceUser(BASE, 't'), 'SUBSCRIPTION_SEAT_TYPE_PREMIUM');
+  const identity = await assertNotServiceUser(BASE, 't');
+  assert.equal(identity.seatType, 'SUBSCRIPTION_SEAT_TYPE_PREMIUM');
+  assert.equal(identity.userId, USER_ID);
 });
 
 test('allows other human seat types', async () => {
@@ -55,8 +61,34 @@ test('allows other human seat types', async () => {
     'SUBSCRIPTION_SEAT_TYPE_SUPPORT',
   ]) {
     stubApi({ seatType: seat });
-    assert.equal(await assertNotServiceUser(BASE, 't'), seat);
+    assert.equal((await assertNotServiceUser(BASE, 't')).seatType, seat);
   }
+});
+
+test('reports the org id from whichever response carries it, in either spelling', async () => {
+  const cases = [
+    { whoAmIOrg: { organisation_id: 'org_from_whoami' } },
+    { whoAmIOrg: { organization_id: 'org_from_whoami' } },
+  ];
+  for (const org of cases) {
+    stubApi({ seatType: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM', ...org });
+    assert.equal((await assertNotServiceUser(BASE, 't')).orgId, 'org_from_whoami');
+  }
+
+  stubApi({
+    seatType: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM',
+    userDocumentOrg: { organisation_id: 'org_from_user_document' },
+  });
+  assert.equal((await assertNotServiceUser(BASE, 't')).orgId, 'org_from_user_document');
+});
+
+// An unknown org means usage can't be grouped by customer. That's a lesser
+// analytics answer, not a reason to refuse a valid token.
+test('an org id the API never reports is left undefined, not fatal', async () => {
+  stubApi({ seatType: 'SUBSCRIPTION_SEAT_TYPE_PREMIUM' });
+  const identity = await assertNotServiceUser(BASE, 't');
+  assert.equal(identity.orgId, undefined);
+  assert.equal(identity.seatType, 'SUBSCRIPTION_SEAT_TYPE_PREMIUM');
 });
 
 test('rejects a service user', async () => {
