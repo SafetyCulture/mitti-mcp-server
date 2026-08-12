@@ -52,7 +52,7 @@ If it errors or shows an older version, download the installer from [nodejs.org/
 
 Mitti MCP is a standard MCP server, so in principle it works with any tool that supports MCP.
 
-We've done most of our testing in Claude, and some light testing in Gemini and Codex. We haven't put these through all their paces yet, so tell us what you find.
+We've done most of our testing in Claude, and some light testing in Gemini, Codex, and ChatGPT. We haven't put these through all their paces yet, so tell us what you find.
 
 **In every case, swap `TOKEN_GOES_HERE` for the token you generated in Step 1.**
 
@@ -60,6 +60,7 @@ We've done most of our testing in Claude, and some light testing in Gemini and C
 <summary><b>Claude Code</b></summary>
 
 After you've swapped in your token, paste this into your terminal and hit enter.
+
 ```
 claude mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
@@ -102,6 +103,31 @@ After you've swapped in your token, paste this into your terminal and hit enter.
 codex mcp add mitti --env MITTI_API_TOKEN=TOKEN_GOES_HERE -- npx -y https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz
 ```
 Then **open a <u>new</u> Codex session**, wait for the Mitti MCP to connect, and you're on your way.
+
+</details>
+
+<details>
+<summary><b>ChatGPT Desktop (OpenAI)</b></summary>
+
+First, navigate to Plugin settings (these steps might change as the ChatGPT app gets updated):
+
+1. Open Settings in the ChatGPT Desktop app
+2. Go to Plugins
+3. Click Add, then choose Add MCP server
+
+Enter the following into the relevant fields:
+
+| Field | What to enter |
+| --- | --- |
+| Name | `Mitti` |
+| Type | STDIO |
+| Command to launch | `npx` |
+| Arguments | Add two separate arguments:<br>1. `-y`<br>2. `https://github.com/SafetyCulture/mitti-mcp-server/releases/latest/download/mitti-mcp.tgz` |
+| Environment variables | Name `MITTI_API_TOKEN`, value `TOKEN_GOES_HERE` |
+| Environment variable passthrough | Leave blank |
+| Working directory | Leave blank |
+
+Click Save and **fully restart** the ChatGPT app. Start a new **'Work' conversation** (not 'Chat') to use the Mitti MCP.
 
 </details>
 
@@ -216,7 +242,7 @@ Rough notes are fine, screenshots better. We'd rather have something scrappy tod
 
 **"MITTI_API_TOKEN is not set"** — the token didn't reach the connector. Redo Step 3 and check for a typo in the `env` section.
 
-**"This token belongs to a service user"** — that's a service account token. Generate one from your own account instead (Step 1).
+**"This token belongs to a service user"** — that's a service account token. Generate a token from your own account instead (Step 1).
 
 **`spawn npx ENOENT` on Windows** — on Windows outside WSL, some tools can't launch `npx` directly. Wrap it: `-- cmd /c npx -y <url>` on the command line, or in JSON set `"command": "cmd"` with `"args": ["/c", "npx", "-y", "<url>"]`.
 
