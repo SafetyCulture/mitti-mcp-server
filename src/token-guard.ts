@@ -85,6 +85,12 @@ async function getJson(url: URL, token: string): Promise<Record<string, unknown>
     throw error;
   }
   if (!response.ok) {
+    // An error response's body is never read otherwise, and this process
+    // calls process.exit() moments after the caller sees this rejection —
+    // on Windows that races libuv's async-handle close for the still-open
+    // body against the exit and crashes with an assertion in src\win\async.c
+    // (see nodejs/node#56645). Draining it first avoids the race.
+    await response.body?.cancel().catch(() => {});
     throw new Error(`${url.pathname} returned ${response.status}`);
   }
   return (await response.json()) as Record<string, unknown>;
