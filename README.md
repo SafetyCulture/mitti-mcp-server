@@ -28,14 +28,14 @@ Follow these steps to get started.
 
 ### Step 1 — Create your API token
 
-Go to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens) and generate a token from your own account. Here's a full [help article](https://help.safetyculture.com/000007).
+Go to [app.mitti.com/account/api-tokens](https://app.mitti.com/account/api-tokens) and generate a token from your own account. Here's a full [help article](https://help.mitti.com/000007).
 
 It must be an API token for your user account, not a service account token.
 
 **Treat the token like a password — the token itself provides full read <u>and write</u> access to your account, even though the connector limits your AI tool to reading:**
 - Do not share it with anyone.
 - Store it somewhere safe while you complete setup.
-- If you have security concerns at any point, revoke it by going back to [app.safetyculture.com/account/api-tokens](https://app.safetyculture.com/account/api-tokens).
+- If you have security concerns at any point, revoke it by going back to [app.mitti.com/account/api-tokens](https://app.mitti.com/account/api-tokens).
 
 ### Step 2 — Check you have Node.js
 
