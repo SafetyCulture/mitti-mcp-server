@@ -1,3 +1,8 @@
+## Unmaintained
+This project is no longer being maintained by Mitti. 
+Use our hosted MCP instead: `https://mcp.mitti.com/mcp`. More information in `https://developer.mitti.com/docs/connect-an-ai-tool-to-mitti`
+
+
 # Mitti MCP
 
 Connect your Mitti data to the AI tools you already use. Ask questions in plain language and get answers from your Mitti account.
