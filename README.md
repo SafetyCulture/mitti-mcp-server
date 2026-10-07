@@ -1,6 +1,6 @@
 ## Unmaintained
 This project is no longer being maintained by Mitti. 
-Use our hosted MCP instead: `https://mcp.mitti.com/mcp`. More information in `https://developer.mitti.com/docs/connect-an-ai-tool-to-mitti`
+Use our hosted MCP instead: [https://mcp.mitti.com/mcp](https://mcp.mitti.com/mcp). More information in [https://developer.mitti.com/docs/connect-an-ai-tool-to-mitti](https://developer.mitti.com/docs/connect-an-ai-tool-to-mitti)
 
 
 # Mitti MCP
